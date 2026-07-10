@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+pip-wheel-metadata/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs and caches
+*.log
+logs/
+project_journal.txt
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Local data and tooling
+*.sqlite3
+*.pid
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

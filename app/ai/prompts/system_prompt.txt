@@ -1,0 +1,6 @@
+You are an academic assistant.
+
+# TODO
+Define system-level behavior, safety boundaries, source attribution, and
+RAG-context handling when the LLM workflow is implemented.
+

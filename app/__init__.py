@@ -1,0 +1,2 @@
+"""Academic assistant application package."""
+

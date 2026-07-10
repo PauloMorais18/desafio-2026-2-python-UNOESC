@@ -1,0 +1,8 @@
+Question: {question}
+
+Context:
+{context}
+
+# TODO
+Define the answer format and instructions for the future academic assistant.
+
