@@ -17,6 +17,7 @@ _Ao concluir o desafio, lembre de enviar um email para **recrutamentorh.jba@unoe
 * Mysql/Postgres
 * Git
 * LangChain
+* Documentação
 
 ## PONTOS DESEJÁVEIS
 * Docker
