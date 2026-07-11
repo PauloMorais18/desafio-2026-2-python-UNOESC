@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     ollama_url: str = "http://localhost:11434"
     model_name: str = "replace-with-local-model"
-    app_name: str = "Academic Assistant API"
+    app_name: str = "UNOIA"
     app_version: str = "0.1.0"
     log_level: str = "INFO"
 
@@ -25,4 +25,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return cached settings to keep configuration consistent per process."""
     return Settings()
-
