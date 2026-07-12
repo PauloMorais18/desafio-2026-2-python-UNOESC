@@ -1,9 +1,7 @@
 """Knowledge-context upload routes."""
 
 from pathlib import Path
-import re
 from typing import Annotated
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -25,8 +23,8 @@ def get_document_path(document_id: str) -> Path:
 
 
 def public_name(path: Path) -> str:
-    """Use the original filename when stored by the current upload flow."""
-    return path.name.split("__", 1)[1] if "__" in path.name else path.name
+    """Expose exactly the filename stored in the context directory."""
+    return path.name
 
 
 @router.get("/documentos")
@@ -79,8 +77,12 @@ async def upload_context(
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Envie um arquivo PDF, TXT, MD, DOC ou DOCX.")
 
     DOCUMENTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", Path(original_name).stem)[:80]
-    destination = DOCUMENTS_DIRECTORY / f"{uuid4().hex}__{safe_name}{suffix}"
+    destination = DOCUMENTS_DIRECTORY / original_name
+    if destination.exists():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Já existe um documento com esse nome. Renomeie o arquivo antes de enviá-lo.",
+        )
     destination.write_bytes(await file.read())
     await file.close()
     return {"arquivo": original_name, "armazenado_em": str(destination), "enviado_por": current_student}
