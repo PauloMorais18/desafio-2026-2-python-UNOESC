@@ -1,14 +1,17 @@
 """User repository extension point."""
 
 from app.models.usuario import User
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 class UserRepository:
-    """Encapsulate future persistence operations for users."""
+    """Encapsulate user lookups."""
 
-    def get_by_login(self, login: str) -> User | None:
-        """Find a user by login after SQLAlchemy session wiring is implemented."""
-        # TODO: Query the database through an injected SQLAlchemy session.
-        _ = login
-        return None
+    def __init__(self, session: Session) -> None:
+        self.session = session
 
+    def get_by_student_code(self, student_code: str) -> User | None:
+        """Find an active or inactive user by their institutional code."""
+        statement = select(User).where(User.student_code == student_code)
+        return self.session.scalar(statement)

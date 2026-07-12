@@ -55,7 +55,7 @@ def main() -> None:
     processes = [
         start_process([sys.executable, "-m", "uvicorn", "app.main:app", "--reload"]),
         start_process(
-            ["npm.cmd", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"],
+            ["npm.cmd", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173", "--force"],
             cwd=FRONTEND_DIRECTORY,
         ),
     ]

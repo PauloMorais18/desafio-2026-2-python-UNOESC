@@ -1,13 +1,15 @@
 """Question-log repository extension point."""
 
 from app.models.log_perguntas import QuestionLog
+from sqlalchemy.orm import Session
 
 
 class QuestionLogRepository:
-    """Encapsulate future persistence and aggregation of question logs."""
+    """Encapsulate question-log persistence."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
 
     def create(self, question_log: QuestionLog) -> None:
-        """Persist an audit record once transaction handling is implemented."""
-        # TODO: Insert the record using an injected SQLAlchemy session.
-        _ = question_log
-
+        """Add a log record to the current transaction."""
+        self.session.add(question_log)
