@@ -39,6 +39,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [searchMode, setSearchMode] = useState(() => window.localStorage.getItem("unoia_search_mode") || "like");
   const [showDocuments, setShowDocuments] = useState(false);
   const [documents, setDocuments] = useState(null);
   const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -129,6 +130,11 @@ function App() {
   function handleMenuAction(message) {
     setMenuNotice(message);
     setShowUserMenu(false);
+  }
+
+  function changeSearchMode(mode) {
+    setSearchMode(mode);
+    window.localStorage.setItem("unoia_search_mode", mode);
   }
 
   async function openProfile() {
@@ -250,7 +256,7 @@ function App() {
     setInput("");
     setIsAnswering(true);
     try {
-      const receivedPayload = { codigoAluno: Number.isNaN(Number(studentCode)) ? studentCode : Number(studentCode), pergunta: question };
+      const receivedPayload = { codigoAluno: Number.isNaN(Number(studentCode)) ? studentCode : Number(studentCode), pergunta: question, modoBusca: searchMode };
       console.info("RF01 - JSON enviado:", receivedPayload);
       const response = await fetch(`${API_URL}/perguntar`, {
         method: "POST",
@@ -296,7 +302,7 @@ function App() {
         {menuNotice && <p className="menu-notice" role="status">{menuNotice}</p>}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
-        {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><p>As configurações desta tela são aplicadas apenas durante a sessão atual.</p></section></div>}
+        {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>usa Full Text até a camada vetorial ser adicionada</small></label></fieldset><p>O modo escolhido fica salvo neste navegador e é usado na próxima pergunta.</p></section></div>}
 
         {showDocuments ? <section className="documents-screen"><div className="history-screen-header"><div><h2>Documentos de contexto</h2><p>Arquivos armazenados em <code>contexto/documentos</code>.</p></div><div className="documents-actions"><button type="button" onClick={() => loadDocuments(true)}>Atualizar</button><label className="upload-button">Enviar documento<input type="file" accept=".pdf,.txt,.doc,.docx,.md" onChange={handleContextFile} /></label><button type="button" onClick={() => setShowDocuments(false)}>Voltar ao chat</button></div></div>{documentsLoading ? <div className="history-empty"><p>Buscando documentos...</p></div> : documentsError ? <div className="history-empty"><p>{documentsError}</p></div> : documents?.length ? <div className="documents-list">{documents.map((document) => <article className="document-row" key={document.id}><div><strong>{document.nome}</strong><span>{Math.max(1, Math.ceil(document.tamanho / 1024))} KB</span></div><div className="document-actions"><button type="button" onClick={() => viewDocument(document)}>Visualizar</button><button type="button" className="danger" onClick={() => deleteDocument(document)}>Excluir</button></div></article>)}</div> : <div className="history-empty"><h3>Nenhum documento enviado</h3><p>Envie um PDF, TXT, MD, DOC ou DOCX para preparar a base de conhecimento.</p></div>}</section> : showHistory ? <section className="history-screen"><div className="history-screen-header"><div><h2>Histórico de chats</h2><p>Cada card é identificado pela primeira mensagem enviada.</p></div><button type="button" onClick={() => setShowHistory(false)}>Voltar ao chat</button></div>{chatHistory.length ? <div className="history-cards">{chatHistory.map((chat) => <button type="button" className="history-card" key={chat.id} onClick={() => selectConversation(chat)}><span>Chat</span><strong>{chat.title}</strong><small>{chat.messages.length} mensagem(ns)</small></button>)}</div> : <div className="history-empty"><h3>Nenhuma conversa ainda</h3><p>Envie sua primeira pergunta para criar um chat.</p></div>}</section> : showAbout ? <section className="about-card"><span className="about-icon">ⓘ</span><div><h2>Sobre o UNOIA</h2><p>Protótipo de assistente acadêmico para orientar alunos usando a base de conhecimento institucional.</p><p><strong>Versão:</strong> 1.0 · <strong>Tecnologias:</strong> React, FastAPI e PostgreSQL.</p></div></section> : <>
           {showNotice && <section className="information-card"><span className="information-icon" aria-hidden="true">ⓘ</span><div><p>O assistente responde apenas perguntas presentes na base de conhecimento cadastrada pela instituição.</p><p>Caso não encontre informações suficientes, ele informará isso ao usuário.</p></div><button type="button" aria-label="Fechar aviso" className="close-notice" onClick={() => setShowNotice(false)}>×</button></section>}

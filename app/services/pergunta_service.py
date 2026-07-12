@@ -21,10 +21,10 @@ class QuestionService:
         self.logs = QuestionLogRepository(session)
         self.knowledge = KnowledgeRepository(session)
 
-    def answer(self, student_code: str, question: str) -> AnswerResponse:
+    def answer(self, student_code: str, question: str, search_mode: str = "like") -> AnswerResponse:
         """Search the knowledge base before returning a grounded response."""
         started_at = perf_counter()
-        matches = self.knowledge.search(question)
+        matches = self.knowledge.search(question, search_mode)
         found = bool(matches)
         sources = [
             KnowledgeSourceResponse(

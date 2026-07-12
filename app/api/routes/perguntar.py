@@ -35,4 +35,4 @@ async def ask_question(
         "pergunta": payload.question,
     }
     print(json.dumps(received_payload, ensure_ascii=False), flush=True)
-    return QuestionService(session).answer(payload.student_code, payload.question)
+    return QuestionService(session).answer(payload.student_code, payload.question, payload.search_mode)
