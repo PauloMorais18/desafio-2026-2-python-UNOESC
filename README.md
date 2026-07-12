@@ -59,7 +59,7 @@ Por questões de segurança e conformidade, todas as conversas devem ser registr
 
 **Requisitos Funcionais**
 
-_RF01 – API Perguntar_ 
+_RF01 – API Perguntar_  ✅
 
 Endpoint /perguntar
 Deve receber um body semelhante a:
