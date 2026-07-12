@@ -39,6 +39,10 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [documents, setDocuments] = useState(null);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState("");
 
   function startNewChat() {
     setActiveConversation("");
@@ -163,10 +167,64 @@ function App() {
       const body = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível enviar o contexto."));
       setMenuNotice(`Contexto enviado: ${body.arquivo}.`);
+      setDocuments(null);
     } catch (error) {
       setMenuNotice(error.message || "Não foi possível enviar o contexto.");
     }
     setShowUserMenu(false);
+  }
+
+  async function loadDocuments(force = false) {
+    if (!accessToken) {
+      openAuth("login");
+      return;
+    }
+    if (documents && !force) return;
+    setDocumentsLoading(true);
+    setDocumentsError("");
+    try {
+      const response = await fetch(`${API_URL}/contexto/documentos`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const body = await response.json();
+      if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível listar os documentos."));
+      setDocuments(body.documentos);
+    } catch (error) {
+      setDocumentsError(error.message || "Não foi possível listar os documentos.");
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }
+
+  function openDocuments() {
+    setShowUserMenu(false);
+    setShowDocuments(true);
+    loadDocuments();
+  }
+
+  async function viewDocument(contextDocument) {
+    try {
+      const response = await fetch(`${API_URL}/contexto/documentos/${encodeURIComponent(contextDocument.id)}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!response.ok) throw new Error("Não foi possível abrir o documento.");
+      const url = URL.createObjectURL(await response.blob());
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      setDocumentsError(error.message || "Não foi possível abrir o documento.");
+    }
+  }
+
+  async function deleteDocument(documentToDelete) {
+    if (!window.confirm(`Excluir o documento "${documentToDelete.nome}"?`)) return;
+    try {
+      const response = await fetch(`${API_URL}/contexto/documentos/${encodeURIComponent(documentToDelete.id)}`, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!response.ok) throw new Error("Não foi possível excluir o documento.");
+      setDocuments((current) => current?.filter((document) => document.id !== documentToDelete.id) || []);
+    } catch (error) {
+      setDocumentsError(error.message || "Não foi possível excluir o documento.");
+    }
   }
 
   async function sendMessage(event) {
@@ -234,13 +292,13 @@ function App() {
       <section className="content">
         <header className="topbar"><div><h1>Bem-vindo ao <strong>Assistente Acadêmico</strong></h1><p>Tire dúvidas utilizando a base de conhecimento da instituição.</p></div><div className="account-actions"><span className="version">Versão 1.0</span>{accessToken ? <button className="account" type="button" onClick={logout}><div className="profile-avatar" aria-hidden="true">♙</div><div className="profile-copy"><strong>Aluno {studentCode}</strong><span>Clique para sair</span></div></button> : <><button className="auth-action" type="button" onClick={() => openAuth("login")}>Entrar</button><button className="auth-action primary" type="button" onClick={() => openAuth("register")}>Criar conta</button></>}<button className="hamburger-button" type="button" aria-label="Abrir menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu(!showUserMenu)}><span /><span /><span /></button></div></header>
 
-        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={() => { setShowHistory(true); setShowUserMenu(false); }}><span>◷</span>Histórico de chats</button><label className="cascade-item upload-context"><span>⇧</span>Upload contexto<input type="file" accept=".pdf,.txt,.doc,.docx,.md" onChange={handleContextFile} /></label><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button></aside>}
+        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={() => { setShowHistory(true); setShowUserMenu(false); }}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button></aside>}
         {menuNotice && <p className="menu-notice" role="status">{menuNotice}</p>}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
         {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><p>As configurações desta tela são aplicadas apenas durante a sessão atual.</p></section></div>}
 
-        {showHistory ? <section className="history-screen"><div className="history-screen-header"><div><h2>Histórico de chats</h2><p>Cada card é identificado pela primeira mensagem enviada.</p></div><button type="button" onClick={() => setShowHistory(false)}>Voltar ao chat</button></div>{chatHistory.length ? <div className="history-cards">{chatHistory.map((chat) => <button type="button" className="history-card" key={chat.id} onClick={() => selectConversation(chat)}><span>Chat</span><strong>{chat.title}</strong><small>{chat.messages.length} mensagem(ns)</small></button>)}</div> : <div className="history-empty"><h3>Nenhuma conversa ainda</h3><p>Envie sua primeira pergunta para criar um chat.</p></div>}</section> : showAbout ? <section className="about-card"><span className="about-icon">ⓘ</span><div><h2>Sobre o UNOIA</h2><p>Protótipo de assistente acadêmico para orientar alunos usando a base de conhecimento institucional.</p><p><strong>Versão:</strong> 1.0 · <strong>Tecnologias:</strong> React, FastAPI e PostgreSQL.</p></div></section> : <>
+        {showDocuments ? <section className="documents-screen"><div className="history-screen-header"><div><h2>Documentos de contexto</h2><p>Arquivos armazenados em <code>contexto/documentos</code>.</p></div><div className="documents-actions"><button type="button" onClick={() => loadDocuments(true)}>Atualizar</button><label className="upload-button">Enviar documento<input type="file" accept=".pdf,.txt,.doc,.docx,.md" onChange={handleContextFile} /></label><button type="button" onClick={() => setShowDocuments(false)}>Voltar ao chat</button></div></div>{documentsLoading ? <div className="history-empty"><p>Buscando documentos...</p></div> : documentsError ? <div className="history-empty"><p>{documentsError}</p></div> : documents?.length ? <div className="documents-list">{documents.map((document) => <article className="document-row" key={document.id}><div><strong>{document.nome}</strong><span>{Math.max(1, Math.ceil(document.tamanho / 1024))} KB</span></div><div className="document-actions"><button type="button" onClick={() => viewDocument(document)}>Visualizar</button><button type="button" className="danger" onClick={() => deleteDocument(document)}>Excluir</button></div></article>)}</div> : <div className="history-empty"><h3>Nenhum documento enviado</h3><p>Envie um PDF, TXT, MD, DOC ou DOCX para preparar a base de conhecimento.</p></div>}</section> : showHistory ? <section className="history-screen"><div className="history-screen-header"><div><h2>Histórico de chats</h2><p>Cada card é identificado pela primeira mensagem enviada.</p></div><button type="button" onClick={() => setShowHistory(false)}>Voltar ao chat</button></div>{chatHistory.length ? <div className="history-cards">{chatHistory.map((chat) => <button type="button" className="history-card" key={chat.id} onClick={() => selectConversation(chat)}><span>Chat</span><strong>{chat.title}</strong><small>{chat.messages.length} mensagem(ns)</small></button>)}</div> : <div className="history-empty"><h3>Nenhuma conversa ainda</h3><p>Envie sua primeira pergunta para criar um chat.</p></div>}</section> : showAbout ? <section className="about-card"><span className="about-icon">ⓘ</span><div><h2>Sobre o UNOIA</h2><p>Protótipo de assistente acadêmico para orientar alunos usando a base de conhecimento institucional.</p><p><strong>Versão:</strong> 1.0 · <strong>Tecnologias:</strong> React, FastAPI e PostgreSQL.</p></div></section> : <>
           {showNotice && <section className="information-card"><span className="information-icon" aria-hidden="true">ⓘ</span><div><p>O assistente responde apenas perguntas presentes na base de conhecimento cadastrada pela instituição.</p><p>Caso não encontre informações suficientes, ele informará isso ao usuário.</p></div><button type="button" aria-label="Fechar aviso" className="close-notice" onClick={() => setShowNotice(false)}>×</button></section>}
           {showLogin && <section className="login-card" aria-label={authMode === "login" ? "Login do aluno" : "Cadastro do aluno"}><div><h2>{authMode === "login" ? "Acesse sua conta" : "Crie sua conta"}</h2><p>{authMode === "login" ? "Entre com seu código de aluno e senha para enviar perguntas." : "Use seu código de aluno e defina uma senha com pelo menos 8 caracteres."}</p><button className="auth-switch" type="button" onClick={() => { setAuthMode(authMode === "login" ? "register" : "login"); setLoginError(""); }}>{authMode === "login" ? "Ainda não possui conta? Criar agora" : "Já possui conta? Entrar"}</button></div><form onSubmit={authMode === "login" ? login : register}><input value={loginCode} onChange={(event) => setLoginCode(event.target.value)} placeholder="Código do aluno" aria-label="Código do aluno" /><div className="password-field"><input value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} type={showPassword ? "text" : "password"} minLength="8" placeholder="Senha" aria-label="Senha" /><button type="button" className="toggle-password" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Ocultar" : "Ver"}</button></div>{authMode === "register" && <input value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} type={showPassword ? "text" : "password"} minLength="8" placeholder="Confirme sua senha" aria-label="Confirme sua senha" />}<button type="submit" disabled={isLoggingIn}>{isLoggingIn ? "Aguarde..." : authMode === "login" ? "Entrar" : "Criar conta"}</button></form>{loginError && <p className="login-error" role="alert">{loginError}</p>}</section>}
           <section className={`chat-experience ${messages.length ? "has-messages" : "is-empty"}`} aria-label="Conversa atual">
