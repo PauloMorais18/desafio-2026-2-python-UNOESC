@@ -1,8 +1,9 @@
-"""Start the API and Streamlit prototypes with one command."""
+"""Start the FastAPI backend and React frontend with one command."""
 
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import subprocess
 import sys
 import time
@@ -10,13 +11,25 @@ import webbrowser
 from collections.abc import Sequence
 
 API_URL = "http://127.0.0.1:8000"
-CHAT_URL = "http://127.0.0.1:8501"
-DASHBOARD_URL = "http://127.0.0.1:8502"
+FRONTEND_URL = "http://127.0.0.1:5173"
+FRONTEND_DIRECTORY = Path(__file__).parent / "frontend"
 
 
-def start_process(command: Sequence[str]) -> subprocess.Popen[bytes]:
+def start_process(
+    command: Sequence[str],
+    cwd: Path | None = None,
+) -> subprocess.Popen[bytes]:
     """Start one development process using the active Python environment."""
-    return subprocess.Popen(command)
+    return subprocess.Popen(command, cwd=cwd)
+
+
+def ensure_frontend_dependencies() -> None:
+    """Install React dependencies once when the frontend has not been prepared."""
+    if (FRONTEND_DIRECTORY / "node_modules").exists():
+        return
+
+    print("Installing frontend dependencies...")
+    subprocess.run(["npm.cmd", "install"], cwd=FRONTEND_DIRECTORY, check=True)
 
 
 def stop_processes(processes: list[subprocess.Popen[bytes]]) -> None:
@@ -33,27 +46,28 @@ def stop_processes(processes: list[subprocess.Popen[bytes]]) -> None:
 
 
 def main() -> None:
-    """Start the complete local prototype and optionally open the chat."""
+    """Start the complete local application and optionally open the frontend."""
     parser = argparse.ArgumentParser(description="Start the Academic Assistant locally.")
     parser.add_argument("--no-browser", action="store_true")
     arguments = parser.parse_args()
 
-    commands = [
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--reload"],
-        [sys.executable, "-m", "streamlit", "run", "chat/app.py", "--server.port", "8501", "--server.headless", "true"],
-        [sys.executable, "-m", "streamlit", "run", "dashboard/app.py", "--server.port", "8502", "--server.headless", "true"],
+    ensure_frontend_dependencies()
+    processes = [
+        start_process([sys.executable, "-m", "uvicorn", "app.main:app", "--reload"]),
+        start_process(
+            ["npm.cmd", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"],
+            cwd=FRONTEND_DIRECTORY,
+        ),
     ]
-    processes = [start_process(command) for command in commands]
 
     print("Academic Assistant started:")
-    print(f"  Chat:      {CHAT_URL}")
-    print(f"  Dashboard: {DASHBOARD_URL}")
+    print(f"  Frontend:  {FRONTEND_URL}")
     print(f"  API docs:  {API_URL}/docs")
     print("Press Ctrl+C to stop all services.")
 
     if not arguments.no_browser:
         time.sleep(2)
-        webbrowser.open(CHAT_URL)
+        webbrowser.open(FRONTEND_URL)
 
     try:
         while True:
