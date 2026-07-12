@@ -1,14 +1,21 @@
 """Application settings loaded from environment variables."""
 
 from functools import lru_cache
+from urllib.parse import quote
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Typed configuration contract for all deployment environments."""
 
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/academic_assistant"
+    database_url: str | None = None
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_name: str = "CHATIA"
+    db_user: str = "postgres"
+    db_password: str = ""
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
@@ -19,6 +26,17 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def build_database_url(self) -> "Settings":
+        """Build the SQLAlchemy URL from the explicit PostgreSQL settings."""
+        if not self.database_url:
+            password = quote(self.db_password, safe="")
+            self.database_url = (
+                f"postgresql+psycopg://{self.db_user}:{password}"
+                f"@{self.db_host}:{self.db_port}/{self.db_name}"
+            )
+        return self
 
 
 @lru_cache

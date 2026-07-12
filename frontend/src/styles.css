@@ -1,6 +1,6 @@
 :root { color: #142e5d; background: #fbfcff; font-family: "Segoe UI", Inter, Arial, sans-serif; font-synthesis: none; }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: #fbfcff; }
+body { margin: 0; min-width: 320px; overflow: hidden; background: #fbfcff; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; }
@@ -30,7 +30,7 @@ button:disabled { cursor: default; }
 .sidebar-link:disabled { color: #8594ac; opacity: .75; }
 .sidebar-link.exit { margin-top: 10px; }
 
-.content { width: min(1140px, calc(100% - 56px)); margin: 0 auto; padding: 42px 0 44px; }
+.content { display: flex; flex-direction: column; width: min(1140px, calc(100% - 56px)); height: 100vh; margin: 0 auto; padding: 42px 0 44px; overflow: hidden; }
 .topbar { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 51px; }
 .topbar h1 { margin: 0; color: #162f5d; font-size: clamp(24px, 2.2vw, 31px); font-weight: 500; letter-spacing: -.8px; }
 .topbar h1 strong { color: #0d55a2; font-weight: 750; }
@@ -46,7 +46,16 @@ button:disabled { cursor: default; }
 .information-card p, .about-card p { margin: 0; font-size: 15px; line-height: 1.65; }
 .information-icon, .about-icon { font-size: 31px; line-height: 1.25; }
 .close-notice { margin-left: auto; padding: 0; color: #142e5d; background: transparent; border: 0; font-size: 33px; line-height: 1; }
-.chat-card { height: 560px; margin-top: 18px; padding: 24px; overflow-y: auto; background: #fff; border: 1px solid #e8edf4; border-radius: 21px; box-shadow: 0 7px 20px rgba(25, 59, 108, .055); }
+.chat-experience { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.chat-experience.is-empty { align-items: center; justify-content: center; gap: 26px; padding: 20px 0 82px; }
+.empty-chat-intro { text-align: center; animation: intro-appear .45s ease both; }
+.intro-symbol { display: grid; place-items: center; width: 46px; height: 46px; margin: 0 auto 14px; color: #198d52; background: #edf8f1; border-radius: 50%; font-size: 22px; }
+.empty-chat-intro h2 { margin: 0; color: #162f5d; font-size: clamp(24px, 2.1vw, 30px); font-weight: 600; letter-spacing: -.5px; }
+.empty-chat-intro p { margin: 9px 0 0; color: #7486a5; font-size: 15px; }
+.composer-wrapper { width: min(760px, 100%); margin: 0 auto; }
+.chat-experience.is-empty .composer-wrapper { animation: composer-appear .45s .08s ease both; }
+.chat-experience.has-messages .composer-wrapper { flex: 0 0 auto; animation: composer-dock .6s cubic-bezier(.2, .8, .2, 1) both; }
+.chat-card { flex: 1; min-height: 0; margin-top: 18px; padding: 24px; overflow-y: auto; background: #fff; border: 1px solid #e8edf4; border-radius: 21px; box-shadow: 0 7px 20px rgba(25, 59, 108, .055); animation: chat-expand .55s cubic-bezier(.2, .8, .2, 1) both; }
 .messages { display: flex; flex-direction: column; gap: 34px; }
 .message-row { display: flex; align-items: flex-end; gap: 12px; }
 .user-message { justify-content: flex-end; }
@@ -70,13 +79,30 @@ button:disabled { cursor: default; }
 .about-card { color: #17315e; background: #fff; }
 .about-card h2 { margin: 0 0 8px; }
 
+@keyframes intro-appear {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes composer-appear {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes chat-expand {
+  from { opacity: 0; transform: translateY(28px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes composer-dock {
+  from { opacity: .65; transform: translateY(-130px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 900px) {
   .application-shell { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .content { width: min(100% - 32px, 1140px); padding-top: 28px; }
   .topbar { gap: 22px; padding-bottom: 30px; }
   .account-divider, .profile-copy, .chevron { display: none; }
-  .chat-card { height: 500px; }
+  .chat-experience.is-empty { padding-bottom: 55px; }
 }
 
 @media (max-width: 560px) {
@@ -86,7 +112,7 @@ button:disabled { cursor: default; }
   .profile-avatar { width: 40px; height: 40px; }
   .information-card { padding: 18px; }
   .information-card p { font-size: 14px; }
-  .chat-card { height: 480px; padding: 16px; }
+  .chat-card { padding: 16px; }
   .message-avatar { flex-basis: 38px; width: 38px; height: 38px; }
   .bubble { max-width: calc(100% - 50px); padding: 15px; font-size: 15px; }
   .message-composer { padding-left: 14px; }

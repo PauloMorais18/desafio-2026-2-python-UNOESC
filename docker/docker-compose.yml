@@ -5,6 +5,8 @@ services:
       dockerfile: docker/Dockerfile
     env_file:
       - ../.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
     ports:
       - "8000:8000"
     depends_on:
@@ -14,17 +16,16 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: academic_assistant
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../scripts/migration.sql:/docker-entrypoint-initdb.d/01-migration.sql:ro
-      - ../scripts/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d academic_assistant"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -37,4 +38,3 @@ services:
 
 volumes:
   postgres_data:
-

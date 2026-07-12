@@ -20,7 +20,7 @@ function formatTime() {
 }
 
 function App() {
-  const [messages, setMessages] = useState([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState([]);
   const [activeConversation, setActiveConversation] = useState("Conversa 1");
   const [input, setInput] = useState("");
   const [isAnswering, setIsAnswering] = useState(false);
@@ -29,7 +29,7 @@ function App() {
 
   function startNewChat() {
     setActiveConversation("");
-    setMessages([{ ...WELCOME_MESSAGE, id: Date.now(), time: formatTime() }]);
+    setMessages([]);
     setShowAbout(false);
   }
 
@@ -145,25 +145,36 @@ function App() {
               </section>
             )}
 
-            <section className="chat-card" aria-label="Conversa atual">
-              <div className="messages">
-                {messages.map((message) => <MessageBubble key={message.id} message={message} />)}
-                {isAnswering && <div className="typing-indicator">O assistente está preparando uma resposta...</div>}
+            <section className={"chat-experience " + (messages.length ? "has-messages" : "is-empty")} aria-label="Conversa atual">
+              {messages.length ? (
+                <div className="chat-card">
+                  <div className="messages">
+                    {messages.map((message) => <MessageBubble key={message.id} message={message} />)}
+                    {isAnswering && <div className="typing-indicator">O assistente está preparando uma resposta...</div>}
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-chat-intro">
+                  <span className="intro-symbol" aria-hidden="true">◢</span>
+                  <h2>Como posso ajudar?</h2>
+                  <p>Envie uma dúvida para iniciar a conversa.</p>
+                </div>
+              )}
+
+              <div className="composer-wrapper">
+                {messages.length && <p className="response-note">As respostas podem levar alguns segundos para serem geradas.</p>}
+                <form className="message-composer" onSubmit={sendMessage}>
+                  <span className="attachment" aria-hidden="true">⌇</span>
+                  <input
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    placeholder="Digite sua dúvida acadêmica..."
+                    aria-label="Digite sua dúvida acadêmica"
+                  />
+                  <button type="submit" disabled={isAnswering}><span aria-hidden="true">⌁</span> Enviar</button>
+                </form>
               </div>
             </section>
-
-            <p className="response-note">As respostas podem levar alguns segundos para serem geradas.</p>
-
-            <form className="message-composer" onSubmit={sendMessage}>
-              <span className="attachment" aria-hidden="true">⌇</span>
-              <input
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                placeholder="Digite sua dúvida acadêmica..."
-                aria-label="Digite sua dúvida acadêmica"
-              />
-              <button type="submit" disabled={isAnswering}><span aria-hidden="true">⌁</span> Enviar</button>
-            </form>
           </>
         )}
       </section>
