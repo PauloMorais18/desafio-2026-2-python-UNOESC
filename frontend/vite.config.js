@@ -12,5 +12,10 @@ export default defineConfig({
       protocol: "ws",
       clientPort: 5173,
     },
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
   },
 });

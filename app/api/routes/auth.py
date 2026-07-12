@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from app.api.dependencies import get_current_student
+from app.repositories.usuario_repository import UserRepository
+from app.schemas.auth import LoginRequest, ProfileResponse, RegisterRequest, TokenResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter(tags=["authentication"])
@@ -36,3 +38,21 @@ async def register(
     if token is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Já existe um usuário com esse código de aluno.")
     return TokenResponse(access_token=token, token_type="bearer")
+
+
+@router.get("/perfil", response_model=ProfileResponse)
+async def get_profile(
+    student_code: Annotated[str, Depends(get_current_student)],
+    session: Annotated[Session, Depends(get_db_session)],
+) -> ProfileResponse:
+    """Return the profile of the authenticated student."""
+    user = UserRepository(session).get_by_student_code(student_code)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Perfil não encontrado.")
+    return ProfileResponse(
+        codigoAluno=user.student_code,
+        nome=user.name,
+        email=user.email,
+        ativo=user.active,
+        datahoracad=user.created_at,
+    )

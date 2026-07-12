@@ -20,5 +20,5 @@ class User(Base):
     login: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column("senha_hash", String(255))
     active: Mapped[bool] = mapped_column("ativo", Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column("datahoracad", DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column("datahoraalt", DateTime(timezone=True), server_default=func.now())

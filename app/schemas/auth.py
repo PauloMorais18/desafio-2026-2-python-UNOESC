@@ -1,5 +1,7 @@
 """Authentication API schemas."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -38,3 +40,15 @@ class RegisterRequest(BaseModel):
     @classmethod
     def normalize_student_code(cls, value: str | int) -> str:
         return str(value)
+
+
+class ProfileResponse(BaseModel):
+    """Public profile fields of the authenticated student."""
+
+    student_code: str = Field(alias="codigoAluno")
+    name: str = Field(alias="nome")
+    email: str | None
+    active: bool = Field(alias="ativo")
+    created_at: datetime = Field(alias="datahoracad")
+
+    model_config = ConfigDict(populate_by_name=True)
