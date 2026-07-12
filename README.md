@@ -119,3 +119,7 @@ _RF09 – Chat_
 Montar tela para enviar mensagem e receber a resposta de acordo com a API do RF01.
 
 **IMPORTANTE: Lembrando que a não completude de todos os pontos, não necessariamente é fator reprovatório, seu esforço será avaliado.**
+
+
+***************
+Utilizar minio para salvar imagens e documentos
