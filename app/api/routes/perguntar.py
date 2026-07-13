@@ -12,16 +12,16 @@ from app.schemas.pergunta import QuestionRequest
 from app.schemas.resposta import AnswerResponse
 from app.services.pergunta_service import ConversationNotFoundError, QuestionService
 
-router = APIRouter(tags=["questions"])
+router = APIRouter(tags=["Perguntas"])
 
 
-@router.post("/perguntar", response_model=AnswerResponse, status_code=status.HTTP_200_OK)
+@router.post("/perguntar", response_model=AnswerResponse, status_code=status.HTTP_200_OK, summary="Enviar pergunta ao assistente")
 async def ask_question(
     payload: QuestionRequest,
     current_student: Annotated[str, Depends(get_current_student)],
     session: Annotated[Session, Depends(get_db_session)],
 ) -> AnswerResponse:
-    """Accept an authenticated student's question and persist its audit log."""
+    """Recebe a pergunta do aluno autenticado, busca contexto e registra o processamento."""
     if payload.student_code != current_student:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -18,7 +18,7 @@ from app.schemas.estatisticas import (
     StudentQuestionCount,
 )
 
-router = APIRouter(tags=["statistics"])
+router = APIRouter(tags=["Estatísticas"])
 
 
 def _today_filter() -> object:
@@ -26,9 +26,9 @@ def _today_filter() -> object:
     return func.date(QuestionLog.created_at) == func.current_date()
 
 
-@router.get("/estatisticas", response_model=StatisticsResponse, status_code=status.HTTP_200_OK)
+@router.get("/estatisticas", response_model=StatisticsResponse, status_code=status.HTTP_200_OK, summary="Consultar resumo das estatísticas")
 def get_statistics(session: Annotated[Session, Depends(get_db_session)]) -> StatisticsResponse:
-    """Return the compact statistics summary kept for compatibility."""
+    """Retorna o resumo compacto de estatísticas mantido para compatibilidade."""
     total_questions, answered_questions, average_processing_time_ms = session.execute(
         select(
             func.count(QuestionLog.id),
@@ -47,9 +47,10 @@ def get_statistics(session: Annotated[Session, Depends(get_db_session)]) -> Stat
     "/estatisticas/perguntas-do-dia",
     response_model=DailyQuestionsResponse,
     status_code=status.HTTP_200_OK,
+    summary="Consultar perguntas realizadas no dia",
 )
 def get_daily_questions(session: Annotated[Session, Depends(get_db_session)]) -> DailyQuestionsResponse:
-    """Return the total number of questions received today."""
+    """Retorna o total de perguntas recebidas no dia atual."""
     total = session.scalar(select(func.count(QuestionLog.id)).where(_today_filter())) or 0
     return DailyQuestionsResponse(date=date.today(), total_questions=int(total))
 
@@ -58,11 +59,12 @@ def get_daily_questions(session: Annotated[Session, Depends(get_db_session)]) ->
     "/estatisticas/perguntas-por-aluno",
     response_model=QuestionsByStudentResponse,
     status_code=status.HTTP_200_OK,
+    summary="Consultar perguntas por aluno",
 )
 def get_questions_by_student(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> QuestionsByStudentResponse:
-    """Return question counts grouped by student code."""
+    """Retorna a quantidade de perguntas agrupada por código de aluno."""
     rows = session.execute(
         select(QuestionLog.student_code, func.count(QuestionLog.id).label("total"))
         .group_by(QuestionLog.student_code)
@@ -77,11 +79,12 @@ def get_questions_by_student(
     "/estatisticas/sem-resposta-ou-erro-do-dia",
     response_model=DailyUnansweredOrErrorResponse,
     status_code=status.HTTP_200_OK,
+    summary="Consultar perguntas sem resposta ou com erro no dia",
 )
 def get_daily_unanswered_or_error(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> DailyUnansweredOrErrorResponse:
-    """Return today's logs marked as unanswered or errored."""
+    """Retorna os registros do dia marcados como sem resposta ou com erro."""
     total = session.scalar(
         select(func.count(QuestionLog.id)).where(
             _today_filter(),
@@ -95,11 +98,12 @@ def get_daily_unanswered_or_error(
     "/estatisticas/tempo-medio-resposta",
     response_model=AverageResponseTimeResponse,
     status_code=status.HTTP_200_OK,
+    summary="Consultar tempo médio de resposta",
 )
 def get_average_response_time(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> AverageResponseTimeResponse:
-    """Return the average processing time of every persisted response."""
+    """Retorna o tempo médio de processamento de todas as respostas armazenadas."""
     average = session.scalar(
         select(func.coalesce(func.avg(QuestionLog.processing_time_ms), 0)).where(
             QuestionLog.answer.is_not(None)

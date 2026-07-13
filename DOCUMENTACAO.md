@@ -160,4 +160,56 @@ Exemplos de retorno:
 }
 ```
 
-No menu hamburger, a tela **Estatísticas** apresenta indicadores do dia, tempo médio e um gráfico de barras de perguntas por aluno. A tela **Documentação** apresenta, dentro da interface React, um resumo dos requisitos RF01 a RF05 e aponta para este arquivo como referência técnica detalhada.
+No menu hamburger, a tela **Estatísticas** apresenta indicadores do dia, tempo médio e um gráfico de barras de perguntas por aluno.
+
+### Como testar o RF06 no Postman
+
+Com a aplicação em execução (`python run.py`), configure o método **GET** no Postman. Os endpoints de estatísticas não exigem token nesta versão.
+
+| Indicador | URL para o Postman | Retorno principal |
+|---|---|---|
+| Perguntas realizadas no dia | `http://127.0.0.1:8000/estatisticas/perguntas-do-dia` | `data`, `totalPerguntas` |
+| Perguntas por aluno | `http://127.0.0.1:8000/estatisticas/perguntas-por-aluno` | Lista `alunos` com `codigoAluno` e `totalPerguntas` |
+| Sem resposta ou erro no dia | `http://127.0.0.1:8000/estatisticas/sem-resposta-ou-erro-do-dia` | `data`, `totalSemRespostaOuErro` |
+| Tempo médio das respostas | `http://127.0.0.1:8000/estatisticas/tempo-medio-resposta` | `tempoMedioRespostaMs` |
+
+Exemplos completos de retorno:
+
+```json
+// GET /estatisticas/perguntas-do-dia
+{
+  "data": "2026-07-12",
+  "totalPerguntas": 9
+}
+```
+
+```json
+// GET /estatisticas/perguntas-por-aluno
+{
+  "alunos": [
+    {
+      "codigoAluno": "400754",
+      "totalPerguntas": 9
+    }
+  ]
+}
+```
+
+```json
+// GET /estatisticas/sem-resposta-ou-erro-do-dia
+{
+  "data": "2026-07-12",
+  "totalSemRespostaOuErro": 5
+}
+```
+
+```json
+// GET /estatisticas/tempo-medio-resposta
+{
+  "tempoMedioRespostaMs": 591.22
+}
+```
+
+## Documentação da API na interface
+
+A opção **Documentação** do menu hamburger consulta `/openapi.json` e mostra todos os endpoints expostos pela API, com método HTTP, caminho, descrição e categoria. A lista é dinâmica: novos endpoints registrados no FastAPI aparecerão automaticamente na página. A tela também disponibiliza acesso ao Swagger em `/docs` para testar requisições e visualizar os schemas completos.

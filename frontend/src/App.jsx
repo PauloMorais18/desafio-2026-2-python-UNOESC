@@ -48,6 +48,9 @@ function App() {
   const [statisticsError, setStatisticsError] = useState("");
   const [statisticsLoading, setStatisticsLoading] = useState(false);
   const [showDocumentation, setShowDocumentation] = useState(false);
+  const [apiDocumentation, setApiDocumentation] = useState(null);
+  const [documentationLoading, setDocumentationLoading] = useState(false);
+  const [documentationError, setDocumentationError] = useState("");
 
   function startNewChat() {
     setActiveConversation("");
@@ -252,13 +255,25 @@ function App() {
     }
   }
 
-  function openDocumentation() {
+  async function openDocumentation() {
     setShowUserMenu(false);
     setShowDocuments(false);
     setShowHistory(false);
     setShowAbout(false);
     setShowStatistics(false);
     setShowDocumentation(true);
+    setDocumentationLoading(true);
+    setDocumentationError("");
+    try {
+      const response = await fetch(`${API_URL}/openapi.json`);
+      const body = await response.json();
+      if (!response.ok) throw new Error("Não foi possível carregar a documentação da API.");
+      setApiDocumentation(body);
+    } catch (error) {
+      setDocumentationError(error.message || "Não foi possível carregar a documentação da API.");
+    } finally {
+      setDocumentationLoading(false);
+    }
   }
 
   async function openHistory() {
@@ -383,7 +398,7 @@ function App() {
         {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
 
         {showStatistics && <StatisticsScreen statistics={statistics} loading={statisticsLoading} error={statisticsError} onBack={() => setShowStatistics(false)} onRefresh={openStatistics} />}
-        {showDocumentation && <DocumentationScreen onBack={() => setShowDocumentation(false)} />}
+        {showDocumentation && <DocumentationScreen documentation={apiDocumentation} loading={documentationLoading} error={documentationError} onBack={() => setShowDocumentation(false)} onRefresh={openDocumentation} />}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
         {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>usa Full Text até a camada vetorial ser adicionada</small></label></fieldset><p>O modo escolhido fica salvo neste navegador e é usado na próxima pergunta.</p></section></div>}
@@ -407,21 +422,30 @@ function MessageBubble({ message }) {
 }
 
 function StatisticsScreen({ statistics, loading, error, onBack, onRefresh }) {
+  const [activeSection, setActiveSection] = useState("visao-geral");
   const students = statistics?.byStudent?.alunos || [];
   const maximumQuestions = Math.max(...students.map((student) => student.totalPerguntas), 1);
+  const dailyQuestions = statistics?.daily?.totalPerguntas ?? 0;
+  const unresolvedQuestions = statistics?.unresolved?.totalSemRespostaOuErro ?? 0;
+  const resolvedQuestions = Math.max(0, dailyQuestions - unresolvedQuestions);
+  const unresolvedPercentage = dailyQuestions ? Math.round((unresolvedQuestions / dailyQuestions) * 100) : 0;
+  const responseTime = Math.round(statistics?.average?.tempoMedioRespostaMs ?? 0);
+  const performancePercentage = Math.min(100, Math.round((responseTime / 1000) * 100));
 
-  return <section className="utility-screen" aria-label="Estatísticas"><div className="utility-header"><div><span className="utility-eyebrow">RF06 · ACOMPANHAMENTO</span><h2>Estatísticas</h2><p>Indicadores calculados a partir das perguntas registradas pelo assistente.</p></div><div><button type="button" onClick={onRefresh}>Atualizar</button><button type="button" onClick={onBack}>Voltar ao chat</button></div></div>{loading ? <div className="utility-empty">Atualizando indicadores...</div> : error ? <div className="utility-empty utility-error">{error}</div> : <><div className="statistics-grid"><article><span>Perguntas realizadas hoje</span><strong>{statistics?.daily?.totalPerguntas ?? 0}</strong><small>{statistics?.daily?.data || "Data atual"}</small></article><article><span>Sem resposta ou com erro hoje</span><strong>{statistics?.unresolved?.totalSemRespostaOuErro ?? 0}</strong><small>Requer acompanhamento</small></article><article><span>Tempo médio de resposta</span><strong>{Math.round(statistics?.average?.tempoMedioRespostaMs ?? 0)} ms</strong><small>Todas as respostas armazenadas</small></article></div><section className="student-chart"><div><h3>Perguntas por aluno</h3><p>Distribuição de todas as perguntas registradas.</p></div>{students.length ? <div className="bar-chart">{students.map((student) => <div className="bar-row" key={student.codigoAluno}><span>Aluno {student.codigoAluno}</span><div className="bar-track"><i style={{ width: `${(student.totalPerguntas / maximumQuestions) * 100}%` }} /></div><strong>{student.totalPerguntas}</strong></div>)}</div> : <p className="chart-empty">Ainda não há perguntas registradas.</p>}</section><div className="statistics-note"><strong>Fonte dos dados:</strong> os indicadores são calculados a partir de <code>logs_perguntas</code> e atualizados ao selecionar “Atualizar”.</div></>}</section>;
+  const quickMenu = [
+    ["visao-geral", "Visão geral"],
+    ["perguntas", "Perguntas"],
+    ["qualidade", "Qualidade"],
+    ["desempenho", "Desempenho"],
+  ];
+
+  return <section className="utility-screen" aria-label="Estatísticas"><div className="utility-header"><div><span className="utility-eyebrow">RF06 · ACOMPANHAMENTO</span><h2>Estatísticas</h2><p>Indicadores calculados a partir das perguntas registradas pelo assistente.</p></div><div><button type="button" onClick={onRefresh}>Atualizar</button><button type="button" onClick={onBack}>Voltar ao chat</button></div></div><nav className="statistics-quick-menu" aria-label="Menu rápido de estatísticas">{quickMenu.map(([id, label]) => <button key={id} className={activeSection === id ? "active" : ""} type="button" onClick={() => setActiveSection(id)}>{label}</button>)}</nav>{loading ? <div className="utility-empty">Atualizando indicadores...</div> : error ? <div className="utility-empty utility-error">{error}</div> : <div className="statistics-content">{activeSection === "visao-geral" && <><div className="statistics-grid"><article><span>Perguntas realizadas hoje</span><strong>{dailyQuestions}</strong><small>{statistics?.daily?.data || "Data atual"}</small></article><article><span>Sem resposta ou com erro hoje</span><strong>{unresolvedQuestions}</strong><small>Requer acompanhamento</small></article><article><span>Tempo médio de resposta</span><strong>{responseTime} ms</strong><small>Todas as respostas armazenadas</small></article></div><div className="overview-chart-grid"><section className="chart-panel"><h3>Resumo diário</h3><p>Volume de perguntas recebidas hoje.</p><div className="single-bar-chart"><div><i style={{ height: `${Math.max(8, Math.min(100, dailyQuestions * 10))}%` }} /><strong>{dailyQuestions}</strong></div><span>Hoje</span></div></section><section className="chart-panel"><h3>Qualidade das respostas</h3><p>Proporção de registros com erro ou sem resposta.</p><div className="mini-donut" style={{ background: `conic-gradient(#dc4a4a 0 ${unresolvedPercentage}%, #31a965 ${unresolvedPercentage}% 100%)` }}><span>{unresolvedPercentage}%<small>pendente</small></span></div></section></div></>}{activeSection === "perguntas" && <div className="chart-layout"><section className="chart-panel daily-chart-panel"><div><h3>Perguntas realizadas hoje</h3><p>Total de mensagens registradas na data atual.</p></div><div className="daily-column-chart"><div className="column-scale"><span>{dailyQuestions}</span><i style={{ height: `${Math.max(8, Math.min(100, dailyQuestions * 10))}%` }} /></div><strong>{statistics?.daily?.data || "Hoje"}</strong></div></section><section className="student-chart"><div><h3>Perguntas por aluno</h3><p>Distribuição de todas as perguntas registradas.</p></div>{students.length ? <div className="bar-chart">{students.map((student) => <div className="bar-row" key={student.codigoAluno}><span>Aluno {student.codigoAluno}</span><div className="bar-track"><i style={{ width: `${(student.totalPerguntas / maximumQuestions) * 100}%` }} /></div><strong>{student.totalPerguntas}</strong></div>)}</div> : <p className="chart-empty">Ainda não há perguntas registradas.</p>}</section></div>}{activeSection === "qualidade" && <section className="quality-chart-panel"><div><h3>Perguntas sem resposta ou com erro</h3><p>Indicador calculado para os registros do dia atual.</p><div className="quality-legend"><span><i className="resolved" />Respondidas: {resolvedQuestions}</span><span><i className="unresolved" />Sem resposta/erro: {unresolvedQuestions}</span></div></div><div className="quality-donut" style={{ background: `conic-gradient(#dc4a4a 0 ${unresolvedPercentage}%, #31a965 ${unresolvedPercentage}% 100%)` }}><div><strong>{unresolvedPercentage}%</strong><span>pendente</span></div></div></section>}{activeSection === "desempenho" && <section className="performance-chart-panel"><div><h3>Tempo médio de resposta</h3><p>Tempo médio de processamento de todas as respostas armazenadas.</p><div className="performance-scale"><span>0 ms</span><div><i style={{ width: `${performancePercentage}%` }} /></div><span>1.000 ms</span></div><small>Referência visual: até 1 segundo.</small></div><div className="performance-gauge" style={{ background: `conic-gradient(#0d55a2 0 ${performancePercentage}%, #e8eef6 ${performancePercentage}% 100%)` }}><span><strong>{responseTime}</strong>ms</span></div></section>}<div className="statistics-note"><strong>Fonte dos dados:</strong> os indicadores são calculados a partir de <code>logs_perguntas</code> e atualizados ao selecionar “Atualizar”.</div></div>}</section>;
 }
 
-function DocumentationScreen({ onBack }) {
-  const requirements = [
-    ["RF01", "Perguntar", "Autenticação por código de aluno, validação do token e endpoint /perguntar."],
-    ["RF02", "Base de conhecimento", "Tabela conhecimento e gerenciamento de documentos de contexto."],
-    ["RF03", "Busca", "Modos LIKE, Full Text e base preparada para embeddings."],
-    ["RF04", "Geração", "Respostas geradas pelo Ollama local com o modelo qwen2.5:3b."],
-    ["RF05", "Histórico", "Conversas e mensagens persistidas com pergunta, resposta, data e tempo."],
-  ];
-  return <section className="utility-screen documentation-screen" aria-label="Documentação do projeto"><div className="utility-header"><div><span className="utility-eyebrow">UNOIA</span><h2>Documentação do projeto</h2><p>Visão resumida dos requisitos funcionais já implementados.</p></div><button type="button" onClick={onBack}>Voltar ao chat</button></div><div className="requirements-list">{requirements.map(([code, title, description]) => <article key={code}><span>{code}</span><div><h3>{title}</h3><p>{description}</p></div></article>)}</div><div className="documentation-footer">A documentação técnica detalhada está disponível no arquivo <code>DOCUMENTACAO.md</code> na raiz do projeto.</div></section>;
+function DocumentationScreen({ documentation, loading, error, onBack, onRefresh }) {
+  const endpoints = Object.entries(documentation?.paths || {}).flatMap(([path, methods]) => Object.entries(methods).filter(([method]) => ["get", "post", "put", "patch", "delete"].includes(method)).map(([method, operation]) => ({ path, method: method.toUpperCase(), operation })));
+
+  return <section className="utility-screen documentation-screen" aria-label="Documentação da API"><div className="utility-header"><div><span className="utility-eyebrow">API UNOIA</span><h2>Documentação da API</h2><p>Endpoints disponíveis nesta instância do Assistente Acadêmico.</p></div><div><button type="button" onClick={onRefresh}>Atualizar</button><a className="utility-link-button" href={`${API_URL}/docs`} target="_blank" rel="noreferrer">Abrir Swagger</a><button type="button" onClick={onBack}>Voltar ao chat</button></div></div>{loading ? <div className="utility-empty">Carregando endpoints...</div> : error ? <div className="utility-empty utility-error">{error}</div> : <><div className="api-summary"><span>{endpoints.length} endpoints disponíveis</span><code>{API_URL}</code></div><div className="api-endpoints-list">{endpoints.map(({ path, method, operation }) => <article className="api-endpoint" key={`${method}-${path}`}><div className="endpoint-main"><span className={`http-method method-${method.toLowerCase()}`}>{method}</span><code>{path}</code></div><div className="endpoint-details"><strong>{operation.summary || operation.operationId || "Operação da API"}</strong><p>{operation.description || "Endpoint disponível na API UNOIA."}</p><small>{operation.tags?.join(" · ") || "API"}{operation.requestBody ? " · recebe dados" : ""}</small></div></article>)}</div><div className="documentation-footer">Esta lista é obtida diretamente do contrato OpenAPI. Para exemplos de requisição e resposta, use o botão <strong>Abrir Swagger</strong>.</div></>}</section>;
 }
 
 export default App;
