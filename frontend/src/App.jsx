@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { StatisticsDashboard } from "./components/StatisticsDashboard";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 const MOCK_RESPONSE = "Esta conversa é apenas um item ilustrativo do histórico.";
@@ -239,6 +240,7 @@ function App() {
     setStatisticsError("");
     try {
       const responses = await Promise.all([
+        fetch(`${API_URL}/estatisticas`),
         fetch(`${API_URL}/estatisticas/perguntas-do-dia`),
         fetch(`${API_URL}/estatisticas/perguntas-por-aluno`),
         fetch(`${API_URL}/estatisticas/sem-resposta-ou-erro-do-dia`),
@@ -247,7 +249,7 @@ function App() {
       const bodies = await Promise.all(responses.map((response) => response.json()));
       const failedIndex = responses.findIndex((response) => !response.ok);
       if (failedIndex >= 0) throw new Error(getApiErrorMessage(bodies[failedIndex].detail, "Não foi possível carregar as estatísticas."));
-      setStatistics({ daily: bodies[0], byStudent: bodies[1], unresolved: bodies[2], average: bodies[3] });
+      setStatistics({ summary: bodies[0], daily: bodies[1], byStudent: bodies[2], unresolved: bodies[3], average: bodies[4] });
     } catch (error) {
       setStatisticsError(error.message || "Não foi possível carregar as estatísticas.");
     } finally {
@@ -397,7 +399,7 @@ function App() {
 
         {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
 
-        {showStatistics && <StatisticsScreen statistics={statistics} loading={statisticsLoading} error={statisticsError} onBack={() => setShowStatistics(false)} onRefresh={openStatistics} />}
+        {showStatistics && <StatisticsDashboard statistics={statistics} loading={statisticsLoading} error={statisticsError} onBack={() => setShowStatistics(false)} onRefresh={openStatistics} />}
         {showDocumentation && <DocumentationScreen documentation={apiDocumentation} loading={documentationLoading} error={documentationError} onBack={() => setShowDocumentation(false)} onRefresh={openDocumentation} />}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}

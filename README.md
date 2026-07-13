@@ -97,7 +97,7 @@ Para cada mensagem recebida e respondida, registrar:
 * data
 * tempoProcessamento
 
-_RF06 – API Estatísticas_
+_RF06 – API Estatísticas_ ✅
 
 Endpoint /estatisticas que possibilite retornar:
 

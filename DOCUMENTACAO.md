@@ -213,3 +213,16 @@ Exemplos completos de retorno:
 ## Documentação da API na interface
 
 A opção **Documentação** do menu hamburger consulta `/openapi.json` e mostra todos os endpoints expostos pela API, com método HTTP, caminho, descrição e categoria. A lista é dinâmica: novos endpoints registrados no FastAPI aparecerão automaticamente na página. A tela também disponibiliza acesso ao Swagger em `/docs` para testar requisições e visualizar os schemas completos.
+
+## Dashboard RF06
+
+O dashboard de estatísticas foi desenvolvido em React com a biblioteca Recharts e preserva a identidade visual do UNOIA. Ele contém cabeçalho com período disponível, atualização manual, menu rápido e indicadores de total de perguntas, respondidas, sem resposta/erro e tempo médio.
+
+Os componentes reutilizáveis criados são:
+
+- `DashboardHeader`: cabeçalho, período e ações do dashboard;
+- `StatisticCard`: cartão de indicador com ícone, valor e descrição;
+- `ChartCard`: contêiner padronizado para gráficos e estados vazios;
+- `StatisticsDashboard`: composição das linhas, atalhos e gráficos do RF06.
+
+Os gráficos com dados fornecidos pelos endpoints atuais mostram perguntas do dia, perguntas por aluno e taxa de sucesso. Os gráficos de categoria, frequência de perguntas, horários, tempo por categoria e evolução semanal exibem um estado vazio explicativo enquanto a API não fornecer essas métricas. Assim, o dashboard não apresenta dados fictícios.
