@@ -68,7 +68,7 @@ Deve receber um body semelhante a:
    "pergunta":"Como faço uma matrícula?"
 }
 
-_RF02 – Base de Conhecimento_
+_RF02 – Base de Conhecimento_ ✅
 
 **Banco de dados - Utilizar uma tabela no banco contendo:**
 * id
@@ -78,16 +78,16 @@ _RF02 – Base de Conhecimento_
 
 **Embedding - Realizar o armazenamento de documentos para servir como base de conhecimento (OPCIONAL)**
 
-_RF03 – Busca_
+_RF03 – Busca_✅
 
 Antes da IA responder, localizar os registros ou documentos (se usando embedding) mais relevantes.
 A busca pode se balizar por LIKE, Full Text ou Embeddings (opcional).
 
-_RF04 – Geração da resposta_
+_RF04 – Geração da resposta_✅
 
 Utilizar LLMs. Caso possua chave de alguma API, pode utilizar, senão podes fazer uso de algum modelo disponível para Ollama local (especificar no projeto).
 
-_RF05 – Histórico_
+_RF05 – Histórico_✅
 
 Para cada mensagem recebida e respondida, registrar:
 

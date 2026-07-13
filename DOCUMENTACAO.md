@@ -102,3 +102,34 @@ MODEL_NAME=qwen2.5:3b
 ```
 
 Quando não houver conteúdo correspondente na base, o modelo ainda responde normalmente a conversas gerais, como saudações. Para dúvidas institucionais sem contexto suficiente, ele informa essa limitação sem inventar dados. Se o Ollama estiver indisponível ou retornar erro, a API devolve uma mensagem segura ao aluno e registra o detalhe técnico no log da pergunta.
+
+## RF05 — Histórico de conversas
+
+O histórico persistente foi implementado com duas tabelas relacionadas:
+
+- `conversas`: identifica a conversa por `chave` UUID, associa-a ao aluno e armazena como título a primeira pergunta enviada.
+- `historico`: registra cada mensagem da conversa com `chaveconversa`, `codigo_aluno`, conteúdo, data e tempo de processamento.
+
+Em `historico`, o campo `tipo` identifica a origem da mensagem:
+
+- `1`: pergunta enviada pelo aluno;
+- `2`: resposta gerada pela IA.
+
+As duas tabelas possuem os campos padrão `chave`, `ativo`, `id` e `datahoraalt`. A relação composta entre `chaveconversa` e `codigo_aluno` garante que uma mensagem só possa ser vinculada a uma conversa do mesmo aluno.
+
+O endpoint `POST /perguntar` cria uma conversa na primeira mensagem e devolve `chaveConversa`. Nas próximas mensagens, essa chave é enviada novamente pelo frontend. Também estão disponíveis:
+
+- `GET /conversas`: lista os chats do aluno autenticado;
+- `GET /conversas/{chaveConversa}/historico`: retorna as mensagens de um chat autenticado.
+
+### Validação do RF05
+
+Foi executado um teste de integração com uma conta temporária no banco. O teste enviou uma pergunta ao endpoint `/perguntar`, consultou a conversa retornada e leu seu histórico pelos endpoints de conversa. O resultado confirmou:
+
+- criação da conversa e retorno de `chaveConversa`;
+- persistência da pergunta como `tipo = 1`;
+- persistência da resposta da IA como `tipo = 2`;
+- preenchimento de `tempoProcessamentoMs` na resposta;
+- recuperação correta pelos endpoints de histórico.
+
+Os registros e a conta usados no teste foram removidos ao final da validação.

@@ -1,6 +1,7 @@
 """Answer API schemas."""
 
 from pydantic import BaseModel, Field
+from uuid import UUID
 
 
 class KnowledgeSourceResponse(BaseModel):
@@ -19,3 +20,4 @@ class AnswerResponse(BaseModel):
     found: bool
     processing_time_ms: int
     sources: list[KnowledgeSourceResponse] = Field(default_factory=list)
+    conversation_key: UUID = Field(serialization_alias="chaveConversa")

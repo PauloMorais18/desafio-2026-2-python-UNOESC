@@ -1,6 +1,7 @@
 """Question API schemas."""
 
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -13,6 +14,7 @@ class QuestionRequest(BaseModel):
     student_code: str = Field(alias="codigoAluno", min_length=1, max_length=50)
     question: str = Field(alias="pergunta", min_length=1, max_length=5000)
     search_mode: Literal["like", "full_text", "embeddings"] = Field(default="like", alias="modoBusca")
+    conversation_key: UUID | None = Field(default=None, alias="chaveConversa")
 
     @field_validator("student_code", mode="before")
     @classmethod

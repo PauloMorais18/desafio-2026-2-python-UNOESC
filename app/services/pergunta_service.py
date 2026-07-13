@@ -1,15 +1,20 @@
 """Question-answering use case backed by the local Ollama model."""
 
+from datetime import UTC, datetime
 from time import perf_counter
+from uuid import UUID
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.models.conversa import Conversation
+from app.models.historico import HistoryMessage
 from app.models.log_perguntas import QuestionLog
 from app.models.log_perguntas_conhecimento import QuestionKnowledgeLog
 from app.repositories.conhecimento_repository import KnowledgeRepository
+from app.repositories.conversa_repository import ConversationRepository
 from app.repositories.log_repository import QuestionLogRepository
 from app.schemas.resposta import AnswerResponse, KnowledgeSourceResponse
 
@@ -23,6 +28,10 @@ Para perguntas sobre a instituição, use exclusivamente o contexto instituciona
 Quando uma pergunta institucional não possuir contexto suficiente, explique que não há informação suficiente na base e sugira que o aluno detalhe a dúvida ou consulte a instituição."""
 
 
+class ConversationNotFoundError(ValueError):
+    """Raised when a student attempts to use another user's conversation."""
+
+
 class QuestionService:
     """Search the knowledge base, call the LLM, and persist the audit trail."""
 
@@ -30,6 +39,7 @@ class QuestionService:
         self.session = session
         self.logs = QuestionLogRepository(session)
         self.knowledge = KnowledgeRepository(session)
+        self.conversations = ConversationRepository(session)
 
     @staticmethod
     def _generate_answer(question: str, context: str) -> tuple[str, str | None]:
@@ -60,9 +70,25 @@ class QuestionService:
         except Exception as exc:
             return OLLAMA_UNAVAILABLE_RESPONSE, f"{type(exc).__name__}: {exc}"
 
-    def answer(self, student_code: str, question: str, search_mode: str = "like") -> AnswerResponse:
+    def answer(
+        self,
+        student_code: str,
+        question: str,
+        search_mode: str = "like",
+        conversation_key: UUID | None = None,
+    ) -> AnswerResponse:
         """Search before generating a response, then save the interaction."""
         started_at = perf_counter()
+        conversation = self._get_or_create_conversation(student_code, question, conversation_key)
+        self.session.add(
+            HistoryMessage(
+                conversation_key=conversation.key,
+                student_code=student_code,
+                message_type=1,
+                content=question,
+                processing_time_ms=None,
+            )
+        )
         matches = self.knowledge.search(question, search_mode)
         found = bool(matches)
         sources = [
@@ -96,6 +122,17 @@ class QuestionService:
         self.logs.create(question_log)
         self.session.flush()
 
+        self.session.add(
+            HistoryMessage(
+                conversation_key=conversation.key,
+                student_code=student_code,
+                message_type=2,
+                content=answer,
+                processing_time_ms=processing_time_ms,
+            )
+        )
+        conversation.updated_at = datetime.now(UTC)
+
         for knowledge, relevance in matches:
             self.session.add(
                 QuestionKnowledgeLog(
@@ -111,4 +148,23 @@ class QuestionService:
             found=found,
             processing_time_ms=processing_time_ms,
             sources=sources,
+            conversation_key=conversation.key,
         )
+
+    def _get_or_create_conversation(
+        self,
+        student_code: str,
+        question: str,
+        conversation_key: UUID | None,
+    ) -> Conversation:
+        """Create a conversation from the first question or validate its owner."""
+        if conversation_key is not None:
+            conversation = self.conversations.get_for_student(conversation_key, student_code)
+            if conversation is None:
+                raise ConversationNotFoundError("Conversa não encontrada para o aluno autenticado.")
+            return conversation
+
+        conversation = Conversation(student_code=student_code, title=question[:255])
+        self.session.add(conversation)
+        self.session.flush()
+        return conversation

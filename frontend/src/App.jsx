@@ -52,12 +52,26 @@ function App() {
     setShowHistory(false);
   }
 
-  function selectConversation(conversation) {
+  async function selectConversation(conversation) {
     setActiveConversation(conversation.id);
     setCurrentChatId(conversation.id);
     setShowAbout(false);
     setShowHistory(false);
-    setMessages(conversation.messages);
+    if (conversation.messages?.length) {
+      setMessages(conversation.messages);
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/conversas/${encodeURIComponent(conversation.id)}/historico`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const body = await response.json();
+      if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível carregar a conversa."));
+      const loadedMessages = body.map((message) => ({ id: message.chave, author: message.tipo === 1 ? "user" : "assistant", content: message.conteudo, time: new Date(message.data).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }));
+      setMessages(loadedMessages);
+      setChatHistory((current) => current.map((chat) => chat.id === conversation.id ? { ...chat, messages: loadedMessages } : chat));
+    } catch (error) {
+      setMessages([]);
+      setLoginError(error.message || "Não foi possível carregar a conversa.");
+    }
   }
 
   function openAuth(mode) {
@@ -202,6 +216,28 @@ function App() {
     loadDocuments();
   }
 
+  async function openHistory() {
+    if (!accessToken) {
+      openAuth("login");
+      setShowUserMenu(false);
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/conversas`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const body = await response.json();
+      if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível carregar o histórico."));
+      setChatHistory((current) => body.map((conversation) => {
+        const existing = current.find((chat) => chat.id === conversation.chaveConversa);
+        return { id: conversation.chaveConversa, title: conversation.title, messages: existing?.messages || [] };
+      }));
+      setShowHistory(true);
+    } catch (error) {
+      setLoginError(error.message || "Não foi possível carregar o histórico.");
+    } finally {
+      setShowUserMenu(false);
+    }
+  }
+
   async function viewDocument(contextDocument) {
     try {
       const response = await fetch(`${API_URL}/contexto/documentos/${encodeURIComponent(contextDocument.id)}`, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -252,7 +288,7 @@ function App() {
     setInput("");
     setIsAnswering(true);
     try {
-      const receivedPayload = { codigoAluno: Number.isNaN(Number(studentCode)) ? studentCode : Number(studentCode), pergunta: question, modoBusca: searchMode };
+      const receivedPayload = { codigoAluno: Number.isNaN(Number(studentCode)) ? studentCode : Number(studentCode), pergunta: question, modoBusca: searchMode, ...(typeof currentChatId === "string" ? { chaveConversa: currentChatId } : {}) };
       console.info("RF01 - JSON enviado:", receivedPayload);
       const response = await fetch(`${API_URL}/perguntar`, {
         method: "POST",
@@ -268,6 +304,11 @@ function App() {
       const assistantMessage = { id: Date.now(), author: "assistant", content: body.answer, time: formatTime() };
       setMessages((current) => [...current, assistantMessage]);
       setChatHistory((current) => current.map((chat) => chat.id === chatId ? { ...chat, messages: [...chat.messages, assistantMessage] } : chat));
+      if (body.chaveConversa && body.chaveConversa !== chatId) {
+        setCurrentChatId(body.chaveConversa);
+        setActiveConversation(body.chaveConversa);
+        setChatHistory((current) => current.map((chat) => chat.id === chatId ? { ...chat, id: body.chaveConversa } : chat));
+      }
     } catch (error) {
       const assistantMessage = { id: Date.now(), author: "assistant", content: error.message || "Não foi possível enviar sua pergunta.", time: formatTime() };
       setMessages((current) => [...current, assistantMessage]);
@@ -294,7 +335,7 @@ function App() {
       <section className="content">
         <header className="topbar"><div><h1>Bem-vindo ao <strong>Assistente Acadêmico</strong></h1><p>Tire dúvidas utilizando a base de conhecimento da instituição.</p></div><div className="account-actions"><span className="version">Versão 1.0</span>{accessToken ? <button className="account" type="button" onClick={logout}><div className="profile-avatar" aria-hidden="true">♙</div><div className="profile-copy"><strong>Aluno {studentCode}</strong><span>Clique para sair</span></div></button> : <><button className="auth-action" type="button" onClick={() => openAuth("login")}>Entrar</button><button className="auth-action primary" type="button" onClick={() => openAuth("register")}>Criar conta</button></>}<button className="hamburger-button" type="button" aria-label="Abrir menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu(!showUserMenu)}><span /><span /><span /></button></div></header>
 
-        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={() => { setShowHistory(true); setShowUserMenu(false); }}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
+        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
         {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>usa Full Text até a camada vetorial ser adicionada</small></label></fieldset><p>O modo escolhido fica salvo neste navegador e é usado na próxima pergunta.</p></section></div>}

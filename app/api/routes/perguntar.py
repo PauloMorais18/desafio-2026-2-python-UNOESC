@@ -10,7 +10,7 @@ from app.api.dependencies import get_current_student
 from app.core.database import get_db_session
 from app.schemas.pergunta import QuestionRequest
 from app.schemas.resposta import AnswerResponse
-from app.services.pergunta_service import QuestionService
+from app.services.pergunta_service import ConversationNotFoundError, QuestionService
 
 router = APIRouter(tags=["questions"])
 
@@ -35,4 +35,12 @@ async def ask_question(
         "pergunta": payload.question,
     }
     print(json.dumps(received_payload, ensure_ascii=False), flush=True)
-    return QuestionService(session).answer(payload.student_code, payload.question, payload.search_mode)
+    try:
+        return QuestionService(session).answer(
+            payload.student_code,
+            payload.question,
+            payload.search_mode,
+            payload.conversation_key,
+        )
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
