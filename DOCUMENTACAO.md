@@ -133,3 +133,31 @@ Foi executado um teste de integração com uma conta temporária no banco. O tes
 - recuperação correta pelos endpoints de histórico.
 
 Os registros e a conta usados no teste foram removidos ao final da validação.
+
+## RF06 — Estatísticas
+
+As estatísticas são calculadas a partir da tabela `logs_perguntas` e disponibilizadas por endpoints específicos:
+
+- `GET /estatisticas/perguntas-do-dia`: perguntas realizadas no dia.
+- `GET /estatisticas/perguntas-por-aluno`: perguntas agrupadas por `codigoAluno`.
+- `GET /estatisticas/sem-resposta-ou-erro-do-dia`: quantidade diária com status `sem_resposta` ou `erro`.
+- `GET /estatisticas/tempo-medio-resposta`: tempo médio de processamento de todas as respostas armazenadas.
+
+Exemplos de retorno:
+
+```json
+{
+  "data": "2026-07-12",
+  "totalPerguntas": 9
+}
+```
+
+```json
+{
+  "alunos": [
+    { "codigoAluno": "400754", "totalPerguntas": 9 }
+  ]
+}
+```
+
+No menu hamburger, a tela **Estatísticas** apresenta indicadores do dia, tempo médio e um gráfico de barras de perguntas por aluno. A tela **Documentação** apresenta, dentro da interface React, um resumo dos requisitos RF01 a RF05 e aponta para este arquivo como referência técnica detalhada.

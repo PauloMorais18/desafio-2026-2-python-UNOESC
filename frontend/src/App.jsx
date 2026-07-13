@@ -43,6 +43,11 @@ function App() {
   const [documents, setDocuments] = useState(null);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [documentsError, setDocumentsError] = useState("");
+  const [showStatistics, setShowStatistics] = useState(false);
+  const [statistics, setStatistics] = useState(null);
+  const [statisticsError, setStatisticsError] = useState("");
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
+  const [showDocumentation, setShowDocumentation] = useState(false);
 
   function startNewChat() {
     setActiveConversation("");
@@ -50,6 +55,8 @@ function App() {
     setMessages([]);
     setShowAbout(false);
     setShowHistory(false);
+    setShowStatistics(false);
+    setShowDocumentation(false);
   }
 
   async function selectConversation(conversation) {
@@ -212,8 +219,46 @@ function App() {
 
   function openDocuments() {
     setShowUserMenu(false);
+    setShowStatistics(false);
+    setShowDocumentation(false);
     setShowDocuments(true);
     loadDocuments();
+  }
+
+  async function openStatistics() {
+    setShowUserMenu(false);
+    setShowDocuments(false);
+    setShowHistory(false);
+    setShowAbout(false);
+    setShowDocumentation(false);
+    setShowStatistics(true);
+    setStatisticsLoading(true);
+    setStatisticsError("");
+    try {
+      const responses = await Promise.all([
+        fetch(`${API_URL}/estatisticas/perguntas-do-dia`),
+        fetch(`${API_URL}/estatisticas/perguntas-por-aluno`),
+        fetch(`${API_URL}/estatisticas/sem-resposta-ou-erro-do-dia`),
+        fetch(`${API_URL}/estatisticas/tempo-medio-resposta`),
+      ]);
+      const bodies = await Promise.all(responses.map((response) => response.json()));
+      const failedIndex = responses.findIndex((response) => !response.ok);
+      if (failedIndex >= 0) throw new Error(getApiErrorMessage(bodies[failedIndex].detail, "Não foi possível carregar as estatísticas."));
+      setStatistics({ daily: bodies[0], byStudent: bodies[1], unresolved: bodies[2], average: bodies[3] });
+    } catch (error) {
+      setStatisticsError(error.message || "Não foi possível carregar as estatísticas.");
+    } finally {
+      setStatisticsLoading(false);
+    }
+  }
+
+  function openDocumentation() {
+    setShowUserMenu(false);
+    setShowDocuments(false);
+    setShowHistory(false);
+    setShowAbout(false);
+    setShowStatistics(false);
+    setShowDocumentation(true);
   }
 
   async function openHistory() {
@@ -335,7 +380,10 @@ function App() {
       <section className="content">
         <header className="topbar"><div><h1>Bem-vindo ao <strong>Assistente Acadêmico</strong></h1><p>Tire dúvidas utilizando a base de conhecimento da instituição.</p></div><div className="account-actions"><span className="version">Versão 1.0</span>{accessToken ? <button className="account" type="button" onClick={logout}><div className="profile-avatar" aria-hidden="true">♙</div><div className="profile-copy"><strong>Aluno {studentCode}</strong><span>Clique para sair</span></div></button> : <><button className="auth-action" type="button" onClick={() => openAuth("login")}>Entrar</button><button className="auth-action primary" type="button" onClick={() => openAuth("register")}>Criar conta</button></>}<button className="hamburger-button" type="button" aria-label="Abrir menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu(!showUserMenu)}><span /><span /><span /></button></div></header>
 
-        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
+        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
+
+        {showStatistics && <StatisticsScreen statistics={statistics} loading={statisticsLoading} error={statisticsError} onBack={() => setShowStatistics(false)} onRefresh={openStatistics} />}
+        {showDocumentation && <DocumentationScreen onBack={() => setShowDocumentation(false)} />}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
         {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>usa Full Text até a camada vetorial ser adicionada</small></label></fieldset><p>O modo escolhido fica salvo neste navegador e é usado na próxima pergunta.</p></section></div>}
@@ -356,6 +404,24 @@ function App() {
 function MessageBubble({ message }) {
   const isUser = message.author === "user";
   return <article className={`message-row ${isUser ? "user-message" : "assistant-message"}`}>{!isUser && <div className="message-avatar assistant-avatar" aria-hidden="true">◢</div>}<div className="bubble">{message.content.split("\n").map((line) => <p key={line}>{line}</p>)}<time>{message.time}{isUser && "  ✓✓"}</time></div>{isUser && <div className="message-avatar user-avatar" aria-hidden="true">◉</div>}</article>;
+}
+
+function StatisticsScreen({ statistics, loading, error, onBack, onRefresh }) {
+  const students = statistics?.byStudent?.alunos || [];
+  const maximumQuestions = Math.max(...students.map((student) => student.totalPerguntas), 1);
+
+  return <section className="utility-screen" aria-label="Estatísticas"><div className="utility-header"><div><span className="utility-eyebrow">RF06 · ACOMPANHAMENTO</span><h2>Estatísticas</h2><p>Indicadores calculados a partir das perguntas registradas pelo assistente.</p></div><div><button type="button" onClick={onRefresh}>Atualizar</button><button type="button" onClick={onBack}>Voltar ao chat</button></div></div>{loading ? <div className="utility-empty">Atualizando indicadores...</div> : error ? <div className="utility-empty utility-error">{error}</div> : <><div className="statistics-grid"><article><span>Perguntas realizadas hoje</span><strong>{statistics?.daily?.totalPerguntas ?? 0}</strong><small>{statistics?.daily?.data || "Data atual"}</small></article><article><span>Sem resposta ou com erro hoje</span><strong>{statistics?.unresolved?.totalSemRespostaOuErro ?? 0}</strong><small>Requer acompanhamento</small></article><article><span>Tempo médio de resposta</span><strong>{Math.round(statistics?.average?.tempoMedioRespostaMs ?? 0)} ms</strong><small>Todas as respostas armazenadas</small></article></div><section className="student-chart"><div><h3>Perguntas por aluno</h3><p>Distribuição de todas as perguntas registradas.</p></div>{students.length ? <div className="bar-chart">{students.map((student) => <div className="bar-row" key={student.codigoAluno}><span>Aluno {student.codigoAluno}</span><div className="bar-track"><i style={{ width: `${(student.totalPerguntas / maximumQuestions) * 100}%` }} /></div><strong>{student.totalPerguntas}</strong></div>)}</div> : <p className="chart-empty">Ainda não há perguntas registradas.</p>}</section><div className="statistics-note"><strong>Fonte dos dados:</strong> os indicadores são calculados a partir de <code>logs_perguntas</code> e atualizados ao selecionar “Atualizar”.</div></>}</section>;
+}
+
+function DocumentationScreen({ onBack }) {
+  const requirements = [
+    ["RF01", "Perguntar", "Autenticação por código de aluno, validação do token e endpoint /perguntar."],
+    ["RF02", "Base de conhecimento", "Tabela conhecimento e gerenciamento de documentos de contexto."],
+    ["RF03", "Busca", "Modos LIKE, Full Text e base preparada para embeddings."],
+    ["RF04", "Geração", "Respostas geradas pelo Ollama local com o modelo qwen2.5:3b."],
+    ["RF05", "Histórico", "Conversas e mensagens persistidas com pergunta, resposta, data e tempo."],
+  ];
+  return <section className="utility-screen documentation-screen" aria-label="Documentação do projeto"><div className="utility-header"><div><span className="utility-eyebrow">UNOIA</span><h2>Documentação do projeto</h2><p>Visão resumida dos requisitos funcionais já implementados.</p></div><button type="button" onClick={onBack}>Voltar ao chat</button></div><div className="requirements-list">{requirements.map(([code, title, description]) => <article key={code}><span>{code}</span><div><h3>{title}</h3><p>{description}</p></div></article>)}</div><div className="documentation-footer">A documentação técnica detalhada está disponível no arquivo <code>DOCUMENTACAO.md</code> na raiz do projeto.</div></section>;
 }
 
 export default App;
