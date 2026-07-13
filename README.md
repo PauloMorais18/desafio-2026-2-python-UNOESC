@@ -110,11 +110,11 @@ _RF07 - Segurança_
 
 Todos os endpoints existentes devem exigir a passagem de um Token JWT para seu funcionamento, o formato fica a sua escolha.
 
-_RF08 – Dashboard_
+_RF08 – Dashboard_✅
 
 Montar dashboard onde seja possível visualizar e analisar os dados do RF06.
 
-_RF09 – Chat_
+_RF09 – Chat_✅
 
 Montar tela para enviar mensagem e receber a resposta de acordo com a API do RF01.
 
