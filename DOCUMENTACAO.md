@@ -164,7 +164,11 @@ No menu hamburger, a tela **Estatísticas** apresenta indicadores do dia, tempo 
 
 ### Como testar o RF06 no Postman
 
-Com a aplicação em execução (`python run.py`), configure o método **GET** no Postman. Os endpoints de estatísticas não exigem token nesta versão.
+Com a aplicação em execução (`python run.py`), configure o método **GET** no Postman e informe o header abaixo:
+
+```text
+Authorization: Bearer <seu_token_jwt>
+```
 
 | Indicador | URL para o Postman | Retorno principal |
 |---|---|---|
@@ -213,6 +217,18 @@ Exemplos completos de retorno:
 ## Documentação da API na interface
 
 A opção **Documentação** do menu hamburger consulta `/openapi.json` e mostra todos os endpoints expostos pela API, com método HTTP, caminho, descrição e categoria. A lista é dinâmica: novos endpoints registrados no FastAPI aparecerão automaticamente na página. A tela também disponibiliza acesso ao Swagger em `/docs` para testar requisições e visualizar os schemas completos.
+
+## RF07 — Segurança JWT
+
+Os endpoints funcionais exigem um token JWT no header HTTP:
+
+```text
+Authorization: Bearer <seu_token_jwt>
+```
+
+O token é retornado por `POST /login` ou `POST /cadastro` e identifica o `codigoAluno` autenticado. Sem token, com token inválido ou expirado, a API retorna `401 Unauthorized`.
+
+As únicas exceções são `POST /login` e `POST /cadastro`, necessários para obter o primeiro token, além de `/docs` e `/openapi.json`, que permanecem públicos para consulta da documentação. O dashboard envia o token JWT automaticamente ao consultar as estatísticas.
 
 ## Dashboard RF06
 

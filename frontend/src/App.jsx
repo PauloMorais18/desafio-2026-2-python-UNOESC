@@ -230,6 +230,11 @@ function App() {
   }
 
   async function openStatistics() {
+    if (!accessToken) {
+      openAuth("login");
+      setShowUserMenu(false);
+      return;
+    }
     setShowUserMenu(false);
     setShowDocuments(false);
     setShowHistory(false);
@@ -239,12 +244,13 @@ function App() {
     setStatisticsLoading(true);
     setStatisticsError("");
     try {
+      const headers = { Authorization: `Bearer ${accessToken}` };
       const responses = await Promise.all([
-        fetch(`${API_URL}/estatisticas`),
-        fetch(`${API_URL}/estatisticas/perguntas-do-dia`),
-        fetch(`${API_URL}/estatisticas/perguntas-por-aluno`),
-        fetch(`${API_URL}/estatisticas/sem-resposta-ou-erro-do-dia`),
-        fetch(`${API_URL}/estatisticas/tempo-medio-resposta`),
+        fetch(`${API_URL}/estatisticas`, { headers }),
+        fetch(`${API_URL}/estatisticas/perguntas-do-dia`, { headers }),
+        fetch(`${API_URL}/estatisticas/perguntas-por-aluno`, { headers }),
+        fetch(`${API_URL}/estatisticas/sem-resposta-ou-erro-do-dia`, { headers }),
+        fetch(`${API_URL}/estatisticas/tempo-medio-resposta`, { headers }),
       ]);
       const bodies = await Promise.all(responses.map((response) => response.json()));
       const failedIndex = responses.findIndex((response) => !response.ok);
