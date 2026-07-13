@@ -61,6 +61,17 @@ Foi criado um teste isolado em `tests/test_ollama.py`, sem FastAPI, banco de dad
 - URL: `http://localhost:11434`
 - Modelo: `qwen2.5:3b`
 
+O projeto utiliza o modelo **Qwen2.5:3B** executado localmente através do Ollama.
+
+A escolha deste modelo foi motivada pelos seguintes fatores:
+
+- execução local sem necessidade de APIs pagas;
+- boa capacidade de compreensão do idioma português;
+- baixo consumo de memória em comparação com modelos maiores;
+- respostas rápidas para consultas acadêmicas;
+- integração nativa com LangChain através da biblioteca `langchain-ollama`;
+- atende ao requisito do desafio de utilização de um LLM local.
+
 O comando executado foi:
 
 ```bash
@@ -79,4 +90,15 @@ Resposta:
 OK
 ```
 
-Portanto, a comunicação entre Python, LangChain e o Ollama local foi validada. O próximo passo é integrar essa geração ao fluxo do endpoint `/perguntar`, usando os documentos recuperados no RF03 como contexto.
+Portanto, a comunicação entre Python, LangChain e o Ollama local foi validada.
+
+A geração foi integrada ao fluxo do endpoint `/perguntar`. Após o RF03 recuperar os conteúdos mais relevantes, eles são enviados como contexto para o `ChatOllama`. O prompt instrui o modelo a responder apenas com base nesse contexto institucional e a não inventar informações.
+
+O modelo e o endereço do Ollama são configuráveis no `.env`:
+
+```env
+OLLAMA_URL=http://localhost:11434
+MODEL_NAME=qwen2.5:3b
+```
+
+Quando não houver conteúdo correspondente na base, o modelo ainda responde normalmente a conversas gerais, como saudações. Para dúvidas institucionais sem contexto suficiente, ele informa essa limitação sem inventar dados. Se o Ollama estiver indisponível ou retornar erro, a API devolve uma mensagem segura ao aluno e registra o detalhe técnico no log da pergunta.

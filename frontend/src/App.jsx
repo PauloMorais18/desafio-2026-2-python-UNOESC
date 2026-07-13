@@ -32,7 +32,6 @@ function App() {
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [menuNotice, setMenuNotice] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState("");
@@ -127,11 +126,6 @@ function App() {
     setShowUserMenu(false);
   }
 
-  function handleMenuAction(message) {
-    setMenuNotice(message);
-    setShowUserMenu(false);
-  }
-
   function changeSearchMode(mode) {
     setSearchMode(mode);
     window.localStorage.setItem("unoia_search_mode", mode);
@@ -167,15 +161,17 @@ function App() {
       return;
     }
     try {
+      setDocumentsError("");
       const formData = new FormData();
       formData.append("file", file);
       const response = await fetch(`${API_URL}/contexto/upload`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: formData });
       const body = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível enviar o contexto."));
-      setMenuNotice(`Contexto enviado: ${body.arquivo}.`);
-      setDocuments(null);
+      await loadDocuments(true);
     } catch (error) {
-      setMenuNotice(error.message || "Não foi possível enviar o contexto.");
+      setDocumentsError(error.message || "Não foi possível enviar o contexto.");
+    } finally {
+      event.target.value = "";
     }
     setShowUserMenu(false);
   }
@@ -289,17 +285,16 @@ function App() {
           <button className="new-chat-button" type="button" onClick={startNewChat}><span>＋</span> Novo Chat</button>
           <nav aria-label="Histórico de conversas">
             <p className="navigation-label">HISTÓRICO</p>
-            {chatHistory.length ? chatHistory.map((conversation) => <button className={`conversation-item ${activeConversation === conversation.id ? "active" : ""}`} key={conversation.id} type="button" onClick={() => selectConversation(conversation)}><span className="chat-icon" aria-hidden="true">◯</span>{conversation.title}</button>) : <p className="empty-history">Nenhuma conversa iniciada.</p>}
+            {chatHistory.length ? chatHistory.map((conversation) => <button className={`conversation-item ${activeConversation === conversation.id ? "active" : ""}`} key={conversation.id} type="button" onClick={() => selectConversation(conversation)}><span className="chat-icon" aria-hidden="true" />{conversation.title}</button>) : <p className="empty-history">Nenhuma conversa iniciada.</p>}
           </nav>
         </div>
-        <div className="sidebar-footer"><div className="footer-divider" /><p className="navigation-label">OUTRAS OPÇÕES</p><button className="sidebar-link" type="button" onClick={() => setShowAbout(true)}><span aria-hidden="true">ⓘ</span> Sobre o Assistente</button><div className="footer-divider lower" />{accessToken ? <button className="sidebar-link exit" type="button" onClick={logout}><span aria-hidden="true">⇥</span>Sair</button> : <><button className="sidebar-link exit" type="button" onClick={() => openAuth("login")}><span aria-hidden="true">⇥</span>Entrar</button><button className="sidebar-link" type="button" onClick={() => openAuth("register")}><span aria-hidden="true">＋</span>Criar conta</button></>}</div>
+        <div className="sidebar-footer"><div className="footer-divider" />{accessToken ? <button className="sidebar-link exit" type="button" onClick={logout}><span aria-hidden="true">⇥</span>Sair</button> : <><button className="sidebar-link exit" type="button" onClick={() => openAuth("login")}><span aria-hidden="true">⇥</span>Entrar</button><button className="sidebar-link" type="button" onClick={() => openAuth("register")}><span aria-hidden="true">＋</span>Criar conta</button></>}</div>
       </aside>
 
       <section className="content">
         <header className="topbar"><div><h1>Bem-vindo ao <strong>Assistente Acadêmico</strong></h1><p>Tire dúvidas utilizando a base de conhecimento da instituição.</p></div><div className="account-actions"><span className="version">Versão 1.0</span>{accessToken ? <button className="account" type="button" onClick={logout}><div className="profile-avatar" aria-hidden="true">♙</div><div className="profile-copy"><strong>Aluno {studentCode}</strong><span>Clique para sair</span></div></button> : <><button className="auth-action" type="button" onClick={() => openAuth("login")}>Entrar</button><button className="auth-action primary" type="button" onClick={() => openAuth("register")}>Criar conta</button></>}<button className="hamburger-button" type="button" aria-label="Abrir menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu(!showUserMenu)}><span /><span /><span /></button></div></header>
 
-        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={() => { setShowHistory(true); setShowUserMenu(false); }}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button></aside>}
-        {menuNotice && <p className="menu-notice" role="status">{menuNotice}</p>}
+        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={() => { setShowHistory(true); setShowUserMenu(false); }}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
         {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>usa Full Text até a camada vetorial ser adicionada</small></label></fieldset><p>O modo escolhido fica salvo neste navegador e é usado na próxima pergunta.</p></section></div>}
