@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS conhecimento (
     titulo VARCHAR(255) NOT NULL,
     conteudo TEXT NOT NULL,
     categoria VARCHAR(100) NOT NULL,
+    documento_origem VARCHAR(255),
+    indice_trecho INTEGER,
     search_document TSVECTOR GENERATED ALWAYS AS (
         to_tsvector('portuguese', coalesce(titulo, '') || ' ' || coalesce(categoria, '') || ' ' || coalesce(conteudo, ''))
     ) STORED
@@ -119,6 +121,8 @@ ALTER TABLE usuarios ALTER COLUMN datahoracad SET NOT NULL;
 ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS chave UUID;
 ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS datahoraalt TIMESTAMPTZ;
+ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS documento_origem VARCHAR(255);
+ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS indice_trecho INTEGER;
 UPDATE conhecimento SET chave = gen_random_uuid() WHERE chave IS NULL;
 UPDATE conhecimento SET datahoraalt = COALESCE(datahoraalt, CURRENT_TIMESTAMP) WHERE datahoraalt IS NULL;
 ALTER TABLE conhecimento ALTER COLUMN chave SET DEFAULT gen_random_uuid();
@@ -213,6 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_usuarios_codigo_aluno ON usuarios (codigo_aluno);
 CREATE INDEX IF NOT EXISTS idx_conhecimento_categoria ON conhecimento (categoria);
 CREATE INDEX IF NOT EXISTS idx_conhecimento_titulo_trgm ON conhecimento USING GIN (titulo gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_conhecimento_search_document ON conhecimento USING GIN (search_document);
+CREATE INDEX IF NOT EXISTS idx_conhecimento_documento_origem ON conhecimento (documento_origem);
 CREATE INDEX IF NOT EXISTS idx_logs_perguntas_created_at ON logs_perguntas (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_perguntas_codigo_aluno_created_at ON logs_perguntas (codigo_aluno, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_perguntas_status_created_at ON logs_perguntas (status, created_at DESC);

@@ -1,4 +1,6 @@
-# desafio-2026-2-python
+# UnoAssist
+
+Assistente acadêmico desenvolvido para o desafio de Programador I da Unoesc.
 
 CORRESPONDENTE AO EDITAL N. 21/UNOESC-R/2025
 

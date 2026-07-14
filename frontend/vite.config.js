@@ -11,8 +11,8 @@ export default defineConfig({
       devOptions: { enabled: true },
       includeAssets: ["pwa-icon.svg"],
       manifest: {
-        name: "UNOIA - Assistente Acadêmico",
-        short_name: "UNOIA",
+        name: "UnoAssist - Assistente Acadêmico",
+        short_name: "UnoAssist",
         description: "Assistente acadêmico para consulta à base de conhecimento institucional.",
         lang: "pt-BR",
         theme_color: "#0d55a2",

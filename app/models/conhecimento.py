@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Computed, String, Text
+from sqlalchemy import Boolean, Computed, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import TSVECTOR
 
@@ -19,6 +19,10 @@ class Knowledge(Base):
     title: Mapped[str] = mapped_column("titulo", String(255), index=True)
     content: Mapped[str] = mapped_column("conteudo", Text)
     category: Mapped[str] = mapped_column("categoria", String(100), index=True)
+    source_document: Mapped[str | None] = mapped_column(
+        "documento_origem", String(255), index=True, nullable=True
+    )
+    chunk_index: Mapped[int | None] = mapped_column("indice_trecho", Integer, nullable=True)
     search_document: Mapped[str] = mapped_column(
         TSVECTOR,
         Computed(

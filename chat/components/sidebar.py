@@ -10,7 +10,7 @@ def render_sidebar(active_conversation: str) -> str:
             """
             <div class="brand">
               <div class="brand-mark">◢</div>
-              <div><b>UNOIA</b><br><span>Assistente Acadêmico</span></div>
+              <div><b>UnoAssist</b><br><span>Assistente Acadêmico</span></div>
             </div>
             """,
             unsafe_allow_html=True,

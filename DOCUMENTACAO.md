@@ -1,6 +1,6 @@
 # Documentação de Implementação
 
-Este arquivo registra o estado atual dos requisitos RF01 a RF04 do Assistente Acadêmico UNOIA.
+Este arquivo registra o estado atual dos requisitos RF01 a RF04 do Assistente Acadêmico UnoAssist.
 
 ## RF01 — API Perguntar
 
@@ -41,6 +41,25 @@ Também foi implementado o gerenciamento de documentos de contexto em `contexto/
 - `GET /contexto/documentos`
 - `GET /contexto/documentos/{id}`
 - `DELETE /contexto/documentos/{id}`
+
+O upload agora extrai o texto de arquivos PDF, TXT, Markdown e DOCX, divide o
+conteúdo em trechos sobrepostos e grava cada trecho na tabela `conhecimento`.
+Os registros recebem `documento_origem` e `indice_trecho`, permitindo rastrear
+a fonte usada pela IA. Ao excluir um documento, seus trechos são desativados e
+deixam de participar das buscas, sem remover referências de logs anteriores.
+
+Para indexar arquivos que já estavam em `contexto/documentos` antes dessa
+funcionalidade, execute uma vez, com um token JWT:
+
+```text
+POST /contexto/reindexar
+Authorization: Bearer <token>
+```
+
+Antes de usar a ingestão em um banco já existente, execute novamente
+`scripts/migration.sql`; a migração é incremental e adiciona as colunas de
+origem sem apagar os dados atuais. PDFs compostos somente por imagens precisam
+passar por OCR antes do envio.
 
 O nome original do arquivo é preservado no armazenamento, evitando confusão na listagem. A camada de embeddings permanece opcional e ainda não foi adicionada.
 
@@ -232,7 +251,7 @@ As únicas exceções são `POST /login` e `POST /cadastro`, necessários para o
 
 ## Dashboard RF06
 
-O dashboard de estatísticas foi desenvolvido em React com a biblioteca Recharts e preserva a identidade visual do UNOIA. Ele contém cabeçalho com período disponível, atualização manual, menu rápido e indicadores de total de perguntas, respondidas, sem resposta/erro e tempo médio.
+O dashboard de estatísticas foi desenvolvido em React com a biblioteca Recharts e preserva a identidade visual do UnoAssist. Ele contém cabeçalho com período disponível, atualização manual, menu rápido e indicadores de total de perguntas, respondidas, sem resposta/erro e tempo médio.
 
 Os componentes reutilizáveis criados são:
 

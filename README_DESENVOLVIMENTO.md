@@ -1,106 +1,150 @@
-# Guia de desenvolvimento
+# Visão técnica do projeto
 
-## Visão geral
+## Sobre o UnoAssist
 
-O Assistente Acadêmico é uma base inicial para uma API preparada para autenticação,
-busca de conhecimento e respostas assistidas por LLM local. Esta etapa não contém
-regras de negócio: os endpoints retornam dados mockados.
+O UnoAssist é um assistente acadêmico criado para responder dúvidas de alunos
+usando informações fornecidas pela própria instituição. A ideia principal é que
+a IA não responda somente com o conhecimento geral do modelo: antes de gerar
+uma resposta, o sistema pesquisa a base de conhecimento e envia o conteúdo
+encontrado como contexto para o Ollama.
 
-## Arquitetura
+O projeto possui uma API em Python, uma interface web em React, banco de dados
+PostgreSQL e integração com um modelo de linguagem executado localmente.
 
-O projeto adota uma organização inspirada em Clean Architecture:
+## Tecnologias utilizadas
 
-- `api/`: entrega HTTP e dependências do FastAPI.
-- `core/`: configuração, banco, segurança, logs e exceções.
-- `ai/`: futura integração com LLM local, RAG e prompts.
-- `schemas/`: contratos Pydantic de entrada e saída.
-- `models/`: representações ORM das tabelas.
-- `repositories/`: futura camada de acesso a dados.
-- `services/`: futuros casos de uso.
-- `utils/`: utilitários pequenos e reutilizáveis.
+- Python e FastAPI na API.
+- React e Vite na interface web.
+- PostgreSQL para usuários, conhecimento, conversas e logs.
+- SQLAlchemy para comunicação entre a aplicação e o banco.
+- Pydantic para validar os dados recebidos e retornados pela API.
+- JWT para autenticação dos alunos.
+- LangChain e Ollama para geração das respostas.
+- Docker para facilitar a execução da API e do PostgreSQL.
+- Streamlit nos protótipos iniciais de chat e dashboard.
 
-## Estrutura complementar
+## Organização do projeto
 
-- `contexto/`: fontes da futura base de conhecimento.
-- `scripts/`: schema e dados fictícios do PostgreSQL.
-- `dashboard/` e `chat/`: interfaces Streamlit iniciais.
-- `docker/`: imagem da API e orquestração local.
-- `tests/`: local para a futura suíte de testes.
+O código principal do backend está dentro da pasta `app/` e foi separado por
+responsabilidade:
 
-## Tecnologias
+- `app/api/`: rotas da API, como login, perguntas, histórico, documentos e
+  estatísticas.
+- `app/core/`: configurações gerais, conexão com o banco, segurança JWT e logs.
+- `app/models/`: representação das tabelas do PostgreSQL no SQLAlchemy.
+- `app/schemas/`: formatos de entrada e saída da API.
+- `app/repositories/`: consultas e operações de acesso aos dados.
+- `app/services/`: regras do sistema, como responder perguntas, autenticar
+  usuários e processar documentos.
+- `app/ai/`: arquivos relacionados à integração com a IA e aos prompts.
+- `app/utils/`: funções auxiliares usadas em diferentes partes do projeto.
 
-Python 3.12, FastAPI, SQLAlchemy 2, PostgreSQL, Pydantic, JWT, LangChain,
-Docker, Docker Compose e Streamlit.
+As outras pastas complementam a aplicação:
 
-## Pré-requisitos e configuração
+- `frontend/`: interface principal do UnoAssist desenvolvida em React.
+- `contexto/documentos/`: arquivos usados como fonte de conhecimento.
+- `scripts/`: estrutura do banco de dados PostgreSQL.
+- `docker/`: arquivos usados para criar os containers da aplicação.
+- `tests/`: testes dos componentes e integrações do projeto.
+- `chat/` e `dashboard/`: protótipos criados em Streamlit durante o
+  desenvolvimento da interface.
 
-Instale Python 3.12, Docker (opcional) e PostgreSQL (opcional). Em seguida:
+## Funcionamento da aplicação
 
-```bash
-python -m venv .venv
-.venv\\Scripts\\activate
-pip install -r requirements.txt
-copy .env.example .env
-```
+### Autenticação
 
-Atualize as variáveis do arquivo `.env` para o ambiente desejado.
+O aluno pode criar uma conta ou entrar usando seu código e senha. Depois do
+login, a API retorna um token JWT. Esse token identifica o aluno e protege as
+rotas que acessam perguntas, conversas, documentos e estatísticas.
 
-## Execução local
+As senhas não são armazenadas diretamente. O sistema salva apenas o hash
+gerado com bcrypt.
 
-Com o ambiente virtual ativado, inicie a API Python e o frontend React com um único comando:
+### Perguntas e respostas
 
-```bash
-python run.py
-```
+Quando uma pergunta é enviada para `/perguntar`, o sistema confere se o código
+do aluno é o mesmo informado no token. Em seguida, pesquisa informações
+relacionadas na tabela `conhecimento`.
 
-O frontend abre em `http://127.0.0.1:5173` e a documentação da API fica em
-`http://127.0.0.1:8000/docs`. Na primeira execução, o comando instala automaticamente
-as dependências do React.
+Os trechos encontrados são enviados ao Ollama junto com a pergunta. O prompt
+orienta o modelo a utilizar o contexto institucional e evitar informações que
+não estejam disponíveis na base. A resposta, o tempo de processamento e as
+fontes consultadas são registrados no banco.
 
-Para iniciar sem abrir o navegador automaticamente:
+### Documentos de contexto
 
-```bash
-python run.py --no-browser
-```
+A interface permite enviar arquivos PDF, TXT, MD e DOCX. No upload, o backend
+extrai o texto, organiza o conteúdo em trechos menores e salva esses trechos na
+tabela `conhecimento`.
 
-Elas ainda não consomem a API; essa integração está marcada como TODO.
+Essa divisão melhora a busca porque permite selecionar apenas as partes mais
+relacionadas à pergunta. Cada trecho mantém o nome do documento de origem e sua
+posição no arquivo. Quando um documento é excluído, seus trechos deixam de ser
+usados nas próximas respostas, mas os registros antigos continuam preservados.
+
+### Histórico e logs
+
+As mensagens são agrupadas em conversas. Cada conversa pertence ao aluno que a
+criou e possui um histórico com perguntas e respostas em ordem cronológica.
+
+Além do histórico visível no chat, a tabela de logs registra o resultado do
+processamento, o tempo da resposta, possíveis erros e os conteúdos da base de
+conhecimento que foram utilizados. Esses dados também servem como fonte para o
+dashboard.
+
+### Estatísticas
+
+A API calcula indicadores a partir dos logs armazenados, incluindo:
+
+- quantidade de perguntas realizadas no dia;
+- quantidade de perguntas por aluno;
+- perguntas sem resposta ou com erro;
+- tempo médio de processamento.
+
+O dashboard em React consulta esses endpoints e apresenta os resultados em
+cartões e gráficos.
 
 ## Banco de dados
 
-Sem Alembic, o schema vive unicamente em `scripts/migration.sql`. Crie o banco
-`chatia`, configure o `DATABASE_URL` no arquivo `.env` e execute a migração no
-PostgreSQL configurado. Os conteúdos da base de conhecimento devem ser
-cadastrados pela aplicação ou diretamente na tabela `conhecimento`.
+O arquivo `scripts/migration.sql` concentra a estrutura do banco de dados. Nele
+ficam as tabelas, relacionamentos, índices, validações e campos necessários para
+o funcionamento do sistema.
 
-## Docker
+As principais tabelas são:
 
-Crie `.env` a partir do exemplo e execute:
+- `usuarios`: contas e dados dos alunos;
+- `conhecimento`: informações pesquisadas antes da resposta da IA;
+- `conversas`: agrupamento dos chats de cada aluno;
+- `historico`: mensagens enviadas e recebidas;
+- `logs_perguntas`: auditoria das perguntas e respostas;
+- `logs_perguntas_conhecimento`: ligação entre uma pergunta e as fontes usadas.
 
-```bash
-docker compose -f docker/docker-compose.yml up --build
-```
+O projeto não utiliza Alembic. A definição e a evolução do banco foram mantidas
+no arquivo de migration para deixar a estrutura centralizada e fácil de
+consultar.
 
-O Compose sobe a API e o PostgreSQL; os scripts SQL são executados na
-inicialização do volume do banco.
+## Interface web
 
-## Endpoints existentes
+O frontend reúne o chat, autenticação, histórico, gerenciamento dos documentos,
+dashboard e visualização da documentação da API. Ele se comunica com o FastAPI
+por requisições HTTP e envia o token JWT nas operações protegidas.
 
-| Método | Rota | Estado |
-| --- | --- | --- |
-| GET | `/health` | mockado |
-| POST | `/login` | mockado |
-| POST | `/perguntar` | mockado |
-| GET | `/estatisticas` | mockado |
+O comando `python run.py` inicia a API e o frontend durante o desenvolvimento.
+O script também organiza o encerramento dos dois processos quando a aplicação é
+finalizada.
 
-## Roadmap
+## Docker e configurações
 
-1. Implementar autenticação, hashing de senha e JWT.
-2. Implementar repositórios, transações e regras de negócio.
-3. Carregar documentos de `contexto/documentos/` com LangChain.
-4. Criar embeddings e configurar armazenamento vetorial.
-5. Integrar Ollama e o fluxo RAG para respostas locais.
-6. Conectar os aplicativos Streamlit à API e adicionar testes.
+A pasta `docker/` contém a imagem da API e o arquivo de composição dos serviços.
+O Docker Compose descreve a comunicação entre o backend e o PostgreSQL, além do
+volume usado para manter os dados do banco.
 
-A integração com LangChain, Ollama, RAG e embeddings possui pontos de extensão
-documentados em `app/ai/`. Nenhuma dessas funcionalidades foi implementada nesta
-estrutura inicial.
+As configurações que mudam entre ambientes ficam no arquivo `.env`, como dados
+de conexão, segredo do JWT, endereço do Ollama e nome do modelo utilizado. O
+arquivo `.env.example` mostra as variáveis esperadas sem expor credenciais reais.
+
+## Documentação da API
+
+O FastAPI gera automaticamente o contrato OpenAPI do projeto. A tela de
+documentação mostra as rotas disponíveis, e o Swagger permite visualizar os
+schemas e testar as requisições da API.

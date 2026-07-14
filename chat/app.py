@@ -64,11 +64,11 @@ def main() -> None:
     render_header()
 
     if action == "about":
-        st.subheader("Sobre o UNOIA")
+        st.subheader("Sobre o UnoAssist")
         st.markdown(
             """
             <div class="about-card">
-              <h3>UNOIA · Assistente Acadêmico</h3>
+              <h3>UnoAssist · Assistente Acadêmico</h3>
               <p><strong>Tecnologias:</strong> Streamlit, FastAPI, PostgreSQL e LangChain.</p>
               <p><strong>Objetivo:</strong> facilitar dúvidas com base no conhecimento institucional.</p>
               <p><strong>Versão:</strong> 1.0</p>
