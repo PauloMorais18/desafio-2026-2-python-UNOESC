@@ -48,6 +48,11 @@ Os registros recebem `documento_origem` e `indice_trecho`, permitindo rastrear
 a fonte usada pela IA. Ao excluir um documento, seus trechos são desativados e
 deixam de participar das buscas, sem remover referências de logs anteriores.
 
+Na inicialização da API, os arquivos incluídos em `contexto/documentos` também
+são verificados automaticamente. Um documento somente é importado quando ainda
+não possui trechos ativos, evitando duplicações. A imagem Docker inclui essa
+pasta, portanto a base inicial também fica disponível na execução em container.
+
 Para indexar arquivos que já estavam em `contexto/documentos` antes dessa
 funcionalidade, execute uma vez, com um token JWT:
 

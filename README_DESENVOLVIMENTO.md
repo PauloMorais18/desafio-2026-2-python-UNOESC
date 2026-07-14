@@ -77,6 +77,11 @@ A interface permite enviar arquivos PDF, TXT, MD e DOCX. No upload, o backend
 extrai o texto, organiza o conteúdo em trechos menores e salva esses trechos na
 tabela `conhecimento`.
 
+Quando a API é iniciada, ela também verifica os documentos que já acompanham o
+projeto. Se algum deles ainda não possuir trechos ativos na base, o conteúdo é
+processado automaticamente. Essa verificação evita que o mesmo arquivo seja
+inserido novamente a cada inicialização.
+
 Essa divisão melhora a busca porque permite selecionar apenas as partes mais
 relacionadas à pergunta. Cada trecho mantém o nome do documento de origem e sua
 posição no arquivo. Quando um documento é excluído, seus trechos deixam de ser

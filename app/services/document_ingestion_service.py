@@ -7,7 +7,7 @@ from pathlib import Path
 
 from docx import Document
 from pypdf import PdfReader
-from sqlalchemy import update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.conhecimento import Knowledge
@@ -65,6 +65,29 @@ class DocumentIngestionService:
 
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def has_active_chunks(self, document_name: str) -> bool:
+        """Return whether a document is already available to retrieval."""
+        total = self.session.scalar(
+            select(func.count(Knowledge.id)).where(
+                Knowledge.source_document == document_name,
+                Knowledge.active.is_(True),
+            )
+        )
+        return bool(total)
+
+    def index_missing(self, directory: Path, extensions: set[str]) -> dict[str, int]:
+        """Index bundled documents once, without duplicating active chunks."""
+        directory.mkdir(parents=True, exist_ok=True)
+        indexed: dict[str, int] = {}
+        for path in sorted(directory.iterdir()):
+            if (
+                path.is_file()
+                and path.suffix.lower() in extensions
+                and not self.has_active_chunks(path.name)
+            ):
+                indexed[path.name] = self.index(path)
+        return indexed
 
     def index(self, path: Path) -> int:
         """Replace the active index for a document and return its chunk count."""

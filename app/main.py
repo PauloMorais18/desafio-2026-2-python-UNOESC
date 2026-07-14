@@ -1,15 +1,49 @@
 """FastAPI application entry point."""
 
+from contextlib import asynccontextmanager
+import logging
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import auth, contexto, conversas, estatisticas, health, perguntar
 from app.api.dependencies import get_current_student
 from app.core.config import get_settings
+from app.core.database import SessionLocal
+from app.services.document_ingestion_service import DocumentIngestionError, DocumentIngestionService
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title=settings.app_name, version=settings.app_version)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Make bundled context documents searchable when the API starts."""
+    with SessionLocal() as session:
+        try:
+            indexed = DocumentIngestionService(session).index_missing(
+                contexto.DOCUMENTS_DIRECTORY,
+                contexto.ALLOWED_EXTENSIONS,
+            )
+            for document_name, chunk_count in indexed.items():
+                logger.info(
+                    "Documento inicial indexado: %s (%s trechos)",
+                    document_name,
+                    chunk_count,
+                )
+        except DocumentIngestionError as exc:
+            session.rollback()
+            logger.warning("Documento inicial não indexado: %s", exc)
+        except Exception:
+            session.rollback()
+            logger.exception(
+                "Não foi possível verificar a base inicial de documentos. "
+                "Confirme se a estrutura do banco está atualizada."
+            )
+    yield
+
+
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
