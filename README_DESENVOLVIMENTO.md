@@ -20,6 +20,7 @@ PostgreSQL e integração com um modelo de linguagem executado localmente.
 - Pydantic para validar os dados recebidos e retornados pela API.
 - JWT para autenticação dos alunos.
 - LangChain e Ollama para geração das respostas.
+- Ollama Embeddings para busca por proximidade semântica.
 - Docker para facilitar a execução da API e do PostgreSQL.
 - Streamlit nos protótipos iniciais de chat e dashboard.
 
@@ -87,6 +88,12 @@ relacionadas à pergunta. Cada trecho mantém o nome do documento de origem e su
 posição no arquivo. Quando um documento é excluído, seus trechos deixam de ser
 usados nas próximas respostas, mas os registros antigos continuam preservados.
 
+Além do texto, cada trecho pode armazenar um vetor gerado pelo modelo
+`nomic-embed-text`. No modo de busca por embeddings, a pergunta também é
+transformada em vetor e comparada aos conteúdos usando similaridade de cosseno.
+Isso permite localizar informações relacionadas pelo sentido, mesmo quando a
+pergunta não usa exatamente as mesmas palavras do documento.
+
 ### Histórico e logs
 
 As mensagens são agrupadas em conversas. Cada conversa pertence ao aluno que a
@@ -127,6 +134,10 @@ As principais tabelas são:
 O projeto não utiliza Alembic. A definição e a evolução do banco foram mantidas
 no arquivo de migration para deixar a estrutura centralizada e fácil de
 consultar.
+
+Os embeddings são armazenados em formato JSONB na própria tabela
+`conhecimento`. Dessa forma, a implementação continua usando somente o
+PostgreSQL definido no projeto e não depende de uma extensão vetorial externa.
 
 ## Interface web
 

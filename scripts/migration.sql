@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS conhecimento (
     categoria VARCHAR(100) NOT NULL,
     documento_origem VARCHAR(255),
     indice_trecho INTEGER,
+    embedding JSONB,
     search_document TSVECTOR GENERATED ALWAYS AS (
         to_tsvector('portuguese', coalesce(titulo, '') || ' ' || coalesce(categoria, '') || ' ' || coalesce(conteudo, ''))
     ) STORED
@@ -123,6 +124,7 @@ ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT
 ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS datahoraalt TIMESTAMPTZ;
 ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS documento_origem VARCHAR(255);
 ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS indice_trecho INTEGER;
+ALTER TABLE conhecimento ADD COLUMN IF NOT EXISTS embedding JSONB;
 UPDATE conhecimento SET chave = gen_random_uuid() WHERE chave IS NULL;
 UPDATE conhecimento SET datahoraalt = COALESCE(datahoraalt, CURRENT_TIMESTAMP) WHERE datahoraalt IS NULL;
 ALTER TABLE conhecimento ALTER COLUMN chave SET DEFAULT gen_random_uuid();

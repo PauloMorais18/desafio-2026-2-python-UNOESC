@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, Computed, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 
 from app.core.database import Base
 
@@ -23,6 +23,9 @@ class Knowledge(Base):
         "documento_origem", String(255), index=True, nullable=True
     )
     chunk_index: Mapped[int | None] = mapped_column("indice_trecho", Integer, nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
     search_document: Mapped[str] = mapped_column(
         TSVECTOR,
         Computed(

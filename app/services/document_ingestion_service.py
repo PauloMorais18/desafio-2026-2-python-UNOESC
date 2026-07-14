@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
@@ -11,6 +12,9 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.conhecimento import Knowledge
+from app.services.embedding_service import EmbeddingService, EmbeddingUnavailableError
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentIngestionError(ValueError):
@@ -96,16 +100,21 @@ class DocumentIngestionService:
             raise DocumentIngestionError(
                 "O arquivo não contém texto pesquisável. PDFs digitalizados precisam de OCR."
             )
+        try:
+            embeddings: list[list[float] | None] = EmbeddingService().embed_documents(chunks)
+        except EmbeddingUnavailableError as exc:
+            logger.warning("Documento indexado sem embeddings: %s", exc)
+            embeddings = [None] * len(chunks)
         self.session.execute(
             update(Knowledge)
             .where(Knowledge.source_document == path.name, Knowledge.active.is_(True))
             .values(active=False)
         )
-        for index, content in enumerate(chunks, start=1):
+        for index, (content, embedding) in enumerate(zip(chunks, embeddings, strict=True), start=1):
             self.session.add(Knowledge(
                 title=f"{path.stem} — trecho {index}", content=content,
                 category="documento", source_document=path.name,
-                chunk_index=index, active=True,
+                chunk_index=index, embedding=embedding, active=True,
             ))
         self.session.commit()
         return len(chunks)

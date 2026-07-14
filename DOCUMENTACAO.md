@@ -66,7 +66,7 @@ Antes de usar a ingestão em um banco já existente, execute novamente
 origem sem apagar os dados atuais. PDFs compostos somente por imagens precisam
 passar por OCR antes do envio.
 
-O nome original do arquivo é preservado no armazenamento, evitando confusão na listagem. A camada de embeddings permanece opcional e ainda não foi adicionada.
+O nome original do arquivo é preservado no armazenamento, evitando confusão na listagem. Durante a ingestão, o texto também é convertido em embeddings pelo modelo configurado no Ollama e armazenado na tabela `conhecimento`.
 
 ## RF03 — Busca
 
@@ -74,7 +74,7 @@ Antes de montar a resposta, a API consulta a base `conhecimento` e retorna os co
 
 - **LIKE**: modo padrão; procura termos no título e no conteúdo.
 - **Full Text**: usa busca textual do PostgreSQL com `tsvector`, índice GIN e idioma português.
-- **Embeddings**: por enquanto utiliza o mesmo mecanismo de Full Text como alternativa, pois uma base vetorial ainda não foi configurada.
+- **Embeddings**: transforma a pergunta e os trechos em vetores com `OllamaEmbeddings` e ordena os resultados por similaridade de cosseno. Os vetores ficam armazenados em JSONB no PostgreSQL.
 
 O modo de busca selecionado é enviado na requisição de pergunta como `modoBusca`. Os resultados encontrados são associados ao log da pergunta na tabela `logs_perguntas_conhecimento`, mantendo a rastreabilidade das fontes usadas.
 

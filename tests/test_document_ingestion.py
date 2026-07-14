@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from app.services.document_ingestion_service import DocumentIngestionService, extract_text, split_text
+from app.services.embedding_service import cosine_similarity
 
 
 class DocumentIngestionTests(unittest.TestCase):
@@ -35,6 +36,11 @@ class DocumentIngestionTests(unittest.TestCase):
 
             self.assertEqual(indexed, {"novo.txt": 1})
             service.index.assert_called_once_with(root / "novo.txt")
+
+    def test_cosine_similarity_ranks_related_vectors(self) -> None:
+        self.assertAlmostEqual(cosine_similarity([1.0, 0.0], [1.0, 0.0]), 1.0)
+        self.assertAlmostEqual(cosine_similarity([1.0, 0.0], [0.0, 1.0]), 0.0)
+        self.assertEqual(cosine_similarity([1.0], [1.0, 2.0]), 0.0)
 
 
 if __name__ == "__main__":

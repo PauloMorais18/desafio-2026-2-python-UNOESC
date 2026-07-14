@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     ollama_url: str = "http://localhost:11434"
     model_name: str = "qwen2.5:3b"
+    embedding_model_name: str = "nomic-embed-text"
     app_name: str = "UnoAssist"
     app_version: str = "0.1.0"
     log_level: str = "INFO"

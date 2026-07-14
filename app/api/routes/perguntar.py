@@ -11,6 +11,7 @@ from app.core.database import get_db_session
 from app.schemas.pergunta import QuestionRequest
 from app.schemas.resposta import AnswerResponse
 from app.services.pergunta_service import ConversationNotFoundError, QuestionService
+from app.services.embedding_service import EmbeddingUnavailableError
 
 router = APIRouter(tags=["Perguntas"])
 
@@ -44,3 +45,6 @@ async def ask_question(
         )
     except ConversationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except EmbeddingUnavailableError as exc:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc

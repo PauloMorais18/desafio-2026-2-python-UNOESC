@@ -11,6 +11,7 @@ from app.api.dependencies import get_current_student
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.services.document_ingestion_service import DocumentIngestionError, DocumentIngestionService
+from app.services.embedding_service import EmbeddingService, EmbeddingUnavailableError
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -31,6 +32,12 @@ async def lifespan(_: FastAPI):
                     document_name,
                     chunk_count,
                 )
+            embedded = EmbeddingService().populate_missing(session)
+            if embedded:
+                logger.info("Embeddings gerados para %s registros da base.", embedded)
+        except EmbeddingUnavailableError as exc:
+            session.rollback()
+            logger.warning("Embeddings iniciais não gerados: %s", exc)
         except DocumentIngestionError as exc:
             session.rollback()
             logger.warning("Documento inicial não indexado: %s", exc)
