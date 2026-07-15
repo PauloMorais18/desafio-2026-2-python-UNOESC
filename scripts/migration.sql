@@ -37,6 +37,21 @@ CREATE TABLE IF NOT EXISTS conhecimento (
     ) STORED
 );
 
+CREATE TABLE IF NOT EXISTS configuracoes (
+    id BIGSERIAL PRIMARY KEY,
+    chave VARCHAR(100) NOT NULL UNIQUE,
+    valor TEXT NOT NULL,
+    descricao VARCHAR(255) NOT NULL,
+    datahoraalt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO configuracoes (chave, valor, descricao) VALUES
+    ('telefone_suporte_whatsapp', '554935512034', 'Número do suporte com código do país e DDD'),
+    ('mensagem_fora_escopo', 'Não encontrei informações sobre esse assunto na base de conhecimento institucional. Entre em contato com o suporte pelo WhatsApp: {telefone}', 'Mensagem usada quando não existe fonte confiável'),
+    ('similaridade_minima_embeddings', '0.65', 'Similaridade mínima aceita entre 0 e 1'),
+    ('limite_fontes', '3', 'Quantidade máxima de fontes enviadas ao modelo')
+ON CONFLICT (chave) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS logs_perguntas (
     chave UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     ativo BOOLEAN NOT NULL DEFAULT TRUE,
@@ -205,6 +220,8 @@ DROP TRIGGER IF EXISTS tr_usuarios_datahoraalt ON usuarios;
 CREATE TRIGGER tr_usuarios_datahoraalt BEFORE UPDATE ON usuarios FOR EACH ROW EXECUTE FUNCTION atualizar_datahoraalt();
 DROP TRIGGER IF EXISTS tr_conhecimento_datahoraalt ON conhecimento;
 CREATE TRIGGER tr_conhecimento_datahoraalt BEFORE UPDATE ON conhecimento FOR EACH ROW EXECUTE FUNCTION atualizar_datahoraalt();
+DROP TRIGGER IF EXISTS tr_configuracoes_datahoraalt ON configuracoes;
+CREATE TRIGGER tr_configuracoes_datahoraalt BEFORE UPDATE ON configuracoes FOR EACH ROW EXECUTE FUNCTION atualizar_datahoraalt();
 DROP TRIGGER IF EXISTS tr_logs_perguntas_datahoraalt ON logs_perguntas;
 CREATE TRIGGER tr_logs_perguntas_datahoraalt BEFORE UPDATE ON logs_perguntas FOR EACH ROW EXECUTE FUNCTION atualizar_datahoraalt();
 DROP TRIGGER IF EXISTS tr_logs_perguntas_conhecimento_datahoraalt ON logs_perguntas_conhecimento;
@@ -220,6 +237,7 @@ CREATE INDEX IF NOT EXISTS idx_conhecimento_categoria ON conhecimento (categoria
 CREATE INDEX IF NOT EXISTS idx_conhecimento_titulo_trgm ON conhecimento USING GIN (titulo gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_conhecimento_search_document ON conhecimento USING GIN (search_document);
 CREATE INDEX IF NOT EXISTS idx_conhecimento_documento_origem ON conhecimento (documento_origem);
+CREATE INDEX IF NOT EXISTS idx_configuracoes_chave ON configuracoes (chave);
 CREATE INDEX IF NOT EXISTS idx_logs_perguntas_created_at ON logs_perguntas (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_perguntas_codigo_aluno_created_at ON logs_perguntas (codigo_aluno, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_perguntas_status_created_at ON logs_perguntas (status, created_at DESC);

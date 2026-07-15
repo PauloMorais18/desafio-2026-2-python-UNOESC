@@ -125,7 +125,9 @@ OLLAMA_URL=http://localhost:11434
 MODEL_NAME=qwen2.5:3b
 ```
 
-Quando não houver conteúdo correspondente na base, o modelo ainda responde normalmente a conversas gerais, como saudações. Para dúvidas institucionais sem contexto suficiente, ele informa essa limitação sem inventar dados. Se o Ollama estiver indisponível ou retornar erro, a API devolve uma mensagem segura ao aluno e registra o detalhe técnico no log da pergunta.
+Quando não há conteúdo relevante na base, o Ollama não é chamado. O backend retorna uma recusa padronizada e registra a pergunta com status `sem_resposta`. Somente resultados acima do limite configurado em `EMBEDDING_MIN_SIMILARITY` são aceitos como fonte. Essa validação semântica também é aplicada aos candidatos encontrados por LIKE e Full Text, impedindo que coincidências textuais genéricas liberem uma resposta fora do escopo. Assim, a recusa não depende do comportamento do modelo. Se o Ollama estiver indisponível durante uma resposta que possui contexto, a API devolve uma mensagem segura ao aluno e registra o detalhe técnico no log da pergunta.
+
+O telefone e o texto dessa orientação são mantidos na tabela `configuracoes` e podem ser alterados pela aba Configurações. A interface reconhece o número presente na resposta e exibe somente os dígitos como link para `wa.me`. A mesma tabela mantém o limite de similaridade dos embeddings e o máximo de fontes por resposta. Os endpoints autenticados `GET /configuracoes` e `PUT /configuracoes` fazem a leitura e atualização dessas opções.
 
 ## RF05 — Histórico de conversas
 

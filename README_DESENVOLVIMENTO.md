@@ -72,6 +72,15 @@ orienta o modelo a utilizar o contexto institucional e evitar informações que
 não estejam disponíveis na base. A resposta, o tempo de processamento e as
 fontes consultadas são registrados no banco.
 
+Quando a busca não encontra uma fonte com relevância suficiente, o backend
+responde com uma recusa padronizada e não chama o modelo de linguagem. Esse
+resultado é registrado como `sem_resposta`. Assim, assuntos fora da base não
+dependem da decisão do Ollama e também aparecem nas estatísticas de qualidade.
+
+Mesmo nos modos LIKE e Full Text, os resultados textuais passam por uma
+validação semântica antes da geração. Isso evita que uma palavra genérica
+encontrada por acaso seja tratada como autorização para responder.
+
 ### Documentos de contexto
 
 A interface permite enviar arquivos PDF, TXT, MD e DOCX. No upload, o backend
@@ -158,6 +167,12 @@ volume usado para manter os dados do banco.
 As configurações que mudam entre ambientes ficam no arquivo `.env`, como dados
 de conexão, segredo do JWT, endereço do Ollama e nome do modelo utilizado. O
 arquivo `.env.example` mostra as variáveis esperadas sem expor credenciais reais.
+
+As opções que precisam ser alteradas durante o uso ficam na tabela
+`configuracoes` e podem ser editadas pela tela de configurações. Nela ficam o
+telefone do suporte, a mensagem para assuntos fora da base, o limite semântico
+dos embeddings e a quantidade máxima de fontes. Quando uma pergunta é recusada,
+somente o número aparece como link para uma conversa no WhatsApp.
 
 ## Documentação da API
 

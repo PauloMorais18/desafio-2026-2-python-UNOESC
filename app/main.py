@@ -6,7 +6,7 @@ import logging
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, contexto, conversas, estatisticas, health, perguntar
+from app.api.routes import auth, configuracoes, contexto, conversas, estatisticas, health, perguntar
 from app.api.dependencies import get_current_student
 from app.core.config import get_settings
 from app.core.database import SessionLocal
@@ -61,6 +61,7 @@ app.add_middleware(
 # Login e cadastro são públicos para permitir a obtenção do primeiro token JWT.
 app.include_router(health.router, dependencies=[Depends(get_current_student)])
 app.include_router(auth.router)
+app.include_router(configuracoes.router)
 app.include_router(contexto.router)
 app.include_router(perguntar.router)
 app.include_router(conversas.router)

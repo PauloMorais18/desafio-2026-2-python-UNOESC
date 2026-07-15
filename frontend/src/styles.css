@@ -106,6 +106,14 @@ button:disabled { cursor: default; }
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.runtime-settings { display: grid; gap: 12px; margin-top: 16px; }
+.runtime-settings label { display: grid; gap: 6px; color: #304968; font-size: 13px; font-weight: 650; }
+.runtime-settings input, .runtime-settings textarea { width: 100%; padding: 10px 11px; color: #17315e; background: #fff; border: 1px solid #cddaea; border-radius: 8px; font: inherit; }
+.runtime-settings textarea { min-height: 78px; resize: vertical; }
+.settings-error { margin-top: 10px; color: #b12727; font-size: 13px; }
+.settings-save { margin-top: 15px; padding: 10px 15px; color: #fff; background: #0d55a2; border: 0; border-radius: 8px; font-weight: 650; }
+.support-phone-link { color: inherit; font-weight: 750; text-decoration: underline; text-underline-offset: 2px; }
 @keyframes composer-appear {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }

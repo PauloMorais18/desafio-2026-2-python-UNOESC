@@ -37,6 +37,9 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [runtimeSettings, setRuntimeSettings] = useState({ telefoneSuporteWhatsapp: "554935512034", mensagemForaEscopo: "Não encontrei informações sobre esse assunto na base de conhecimento institucional. Entre em contato com o suporte pelo WhatsApp: {telefone}", similaridadeMinimaEmbeddings: 0.65, limiteFontes: 3 });
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [searchMode, setSearchMode] = useState(() => window.localStorage.getItem("unoassist_search_mode") || "like");
@@ -154,6 +157,46 @@ function App() {
   function changeSearchMode(mode) {
     setSearchMode(mode);
     window.localStorage.setItem("unoassist_search_mode", mode);
+  }
+
+  async function openSettings() {
+    if (!accessToken) {
+      openAuth("login");
+      setShowUserMenu(false);
+      return;
+    }
+    setSettingsError("");
+    setShowSettings(true);
+    setShowUserMenu(false);
+    try {
+      const response = await fetch(`${API_URL}/configuracoes`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const body = await response.json();
+      if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível carregar as configurações."));
+      setRuntimeSettings(body);
+    } catch (error) {
+      setSettingsError(error.message || "Não foi possível carregar as configurações.");
+    }
+  }
+
+  async function saveSettings() {
+    if (settingsSaving) return;
+    setSettingsSaving(true);
+    setSettingsError("");
+    try {
+      const response = await fetch(`${API_URL}/configuracoes`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(runtimeSettings),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível salvar as configurações."));
+      setRuntimeSettings(body);
+      setShowSettings(false);
+    } catch (error) {
+      setSettingsError(error.message || "Não foi possível salvar as configurações.");
+    } finally {
+      setSettingsSaving(false);
+    }
   }
 
   async function openProfile() {
@@ -403,13 +446,13 @@ function App() {
       <section className="content">
         <header className="topbar"><div><h1>Bem-vindo ao <strong>Assistente Acadêmico</strong></h1><p>Tire dúvidas utilizando a base de conhecimento da instituição.</p></div><div className="account-actions"><span className="version">Versão 1.0</span>{accessToken ? <button className="account" type="button" onClick={logout}><div className="profile-avatar" aria-hidden="true">♙</div><div className="profile-copy"><strong>Aluno {studentCode}</strong><span>Clique para sair</span></div></button> : <><button className="auth-action" type="button" onClick={() => openAuth("login")}>Entrar</button><button className="auth-action primary" type="button" onClick={() => openAuth("register")}>Criar conta</button></>}<button className="hamburger-button" type="button" aria-label="Abrir menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu(!showUserMenu)}><span /><span /><span /></button></div></header>
 
-        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item mobile-new-chat" type="button" onClick={() => { startNewChat(); setShowUserMenu(false); }}><span>＋</span>Novo chat</button><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={() => { setShowSettings(true); setShowUserMenu(false); }}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
+        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item mobile-new-chat" type="button" onClick={() => { startNewChat(); setShowUserMenu(false); }}><span>＋</span>Novo chat</button><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={openSettings}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
 
         {showStatistics && <StatisticsDashboard statistics={statistics} loading={statisticsLoading} error={statisticsError} onBack={() => setShowStatistics(false)} onRefresh={openStatistics} />}
         {showDocumentation && <DocumentationScreen documentation={apiDocumentation} loading={documentationLoading} error={documentationError} onBack={() => setShowDocumentation(false)} onRefresh={openDocumentation} />}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
-        {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>busca por similaridade semântica</small></label></fieldset><p>O modo escolhido fica salvo neste navegador e é usado na próxima pergunta.</p></section></div>}
+        {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>busca por similaridade semântica</small></label></fieldset><div className="runtime-settings"><label>Telefone do suporte (país + DDD + número)<input value={runtimeSettings.telefoneSuporteWhatsapp} inputMode="numeric" onChange={(event) => setRuntimeSettings({ ...runtimeSettings, telefoneSuporteWhatsapp: event.target.value.replace(/\D/g, "") })} /></label><label>Mensagem para assuntos fora da base<textarea value={runtimeSettings.mensagemForaEscopo} onChange={(event) => setRuntimeSettings({ ...runtimeSettings, mensagemForaEscopo: event.target.value })} /><small>Use {"{telefone}"} para inserir o número configurado.</small></label><label>Similaridade mínima dos embeddings<input type="number" min="0" max="1" step="0.01" value={runtimeSettings.similaridadeMinimaEmbeddings} onChange={(event) => setRuntimeSettings({ ...runtimeSettings, similaridadeMinimaEmbeddings: Number(event.target.value) })} /></label><label>Máximo de fontes por resposta<input type="number" min="1" max="10" value={runtimeSettings.limiteFontes} onChange={(event) => setRuntimeSettings({ ...runtimeSettings, limiteFontes: Number(event.target.value) })} /></label></div>{settingsError && <p className="settings-error">{settingsError}</p>}<button className="settings-save" type="button" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? "Salvando..." : "Salvar configurações"}</button><p>O modo de busca fica salvo neste navegador; as demais opções são armazenadas no banco.</p></section></div>}
 
         {showDocuments ? <section className="documents-screen"><div className="history-screen-header"><div><h2>Documentos de contexto</h2><p>Arquivos armazenados em <code>contexto/documentos</code>.</p></div><div className="documents-actions"><button type="button" onClick={() => loadDocuments(true)}>Atualizar</button><label className="upload-button">Enviar documento<input type="file" accept=".pdf,.txt,.doc,.docx,.md" onChange={handleContextFile} /></label><button type="button" onClick={() => setShowDocuments(false)}>Voltar ao chat</button></div></div>{documentsLoading ? <div className="history-empty"><p>Buscando documentos...</p></div> : documentsError ? <div className="history-empty"><p>{documentsError}</p></div> : documents?.length ? <div className="documents-list">{documents.map((document) => <article className="document-row" key={document.id}><div><strong>{document.nome}</strong><span>{Math.max(1, Math.ceil(document.tamanho / 1024))} KB</span></div><div className="document-actions"><button type="button" onClick={() => viewDocument(document)}>Visualizar</button><button type="button" className="danger" onClick={() => deleteDocument(document)}>Excluir</button></div></article>)}</div> : <div className="history-empty"><h3>Nenhum documento enviado</h3><p>Envie um PDF, TXT, MD, DOC ou DOCX para preparar a base de conhecimento.</p></div>}</section> : showHistory ? <section className="history-screen"><div className="history-screen-header"><div><h2>Histórico de chats</h2><p>Cada card é identificado pela primeira mensagem enviada.</p></div><button type="button" onClick={() => setShowHistory(false)}>Voltar ao chat</button></div>{chatHistory.length ? <div className="history-cards">{chatHistory.map((chat) => <button type="button" className="history-card" key={chat.id} onClick={() => selectConversation(chat)}><span>Chat</span><strong>{chat.title}</strong><small>{chat.messages.length} mensagem(ns)</small></button>)}</div> : <div className="history-empty"><h3>Nenhuma conversa ainda</h3><p>Envie sua primeira pergunta para criar um chat.</p></div>}</section> : showAbout ? <section className="about-card"><span className="about-icon">ⓘ</span><div><h2>Sobre o UnoAssist</h2><p>Protótipo de assistente acadêmico para orientar alunos usando a base de conhecimento institucional.</p><p><strong>Versão:</strong> 1.0 · <strong>Tecnologias:</strong> React, FastAPI e PostgreSQL.</p></div></section> : <>
           {showNotice && <section className="information-card"><span className="information-icon" aria-hidden="true">ⓘ</span><div><p>O assistente responde apenas perguntas presentes na base de conhecimento cadastrada pela instituição.</p><p>Caso não encontre informações suficientes, ele informará isso ao usuário.</p></div><button type="button" aria-label="Fechar aviso" className="close-notice" onClick={() => setShowNotice(false)}>×</button></section>}
@@ -424,9 +467,18 @@ function App() {
   );
 }
 
+function renderMessageLine(line, isUser) {
+  if (isUser) return line;
+  return line.split(/(\d{10,15})/g).map((part, index) =>
+    /^\d{10,15}$/.test(part)
+      ? <a className="support-phone-link" href={`https://wa.me/${part}`} target="_blank" rel="noreferrer" key={`${part}-${index}`}>{part}</a>
+      : part
+  );
+}
+
 function MessageBubble({ message }) {
   const isUser = message.author === "user";
-  return <article className={`message-row ${isUser ? "user-message" : "assistant-message"}`}>{!isUser && <div className="message-avatar assistant-avatar" aria-hidden="true">◢</div>}<div className="bubble">{message.content.split("\n").map((line) => <p key={line}>{line}</p>)}<time>{message.time}{isUser && "  ✓✓"}</time></div>{isUser && <div className="message-avatar user-avatar" aria-hidden="true">◉</div>}</article>;
+  return <article className={`message-row ${isUser ? "user-message" : "assistant-message"}`}>{!isUser && <div className="message-avatar assistant-avatar" aria-hidden="true">◢</div>}<div className="bubble">{message.content.split("\n").map((line, index) => <p key={`${line}-${index}`}>{renderMessageLine(line, isUser)}</p>)}<time>{message.time}{isUser && "  ✓✓"}</time></div>{isUser && <div className="message-avatar user-avatar" aria-hidden="true">◉</div>}</article>;
 }
 
 function StatisticsScreen({ statistics, loading, error, onBack, onRefresh }) {

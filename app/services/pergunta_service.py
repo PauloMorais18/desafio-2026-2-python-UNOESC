@@ -17,15 +17,21 @@ from app.repositories.conhecimento_repository import KnowledgeRepository
 from app.repositories.conversa_repository import ConversationRepository
 from app.repositories.log_repository import QuestionLogRepository
 from app.schemas.resposta import AnswerResponse, KnowledgeSourceResponse
+from app.services.configuration_service import ConfigurationService, DEFAULT_SETTINGS
 
 OLLAMA_UNAVAILABLE_RESPONSE = (
     "Não foi possível gerar uma resposta agora. Verifique se o Ollama está em execução e tente novamente."
 )
+OUT_OF_SCOPE_RESPONSE = (
+    DEFAULT_SETTINGS["mensagem_fora_escopo"].replace(
+        "{telefone}", DEFAULT_SETTINGS["telefone_suporte_whatsapp"]
+    )
+)
 SYSTEM_PROMPT = """Você é o Assistente Acadêmico da instituição.
 Responda em português do Brasil, de forma objetiva e cordial.
-Responda naturalmente a cumprimentos, despedidas e conversas gerais, mesmo quando não houver contexto institucional.
-Para perguntas sobre a instituição, use exclusivamente o contexto institucional recebido. Não invente dados, regras, prazos ou procedimentos.
-Quando uma pergunta institucional não possuir contexto suficiente, explique que não há informação suficiente na base e sugira que o aluno detalhe a dúvida ou consulte a instituição."""
+Use exclusivamente o contexto institucional recebido.
+Não use conhecimento geral e não invente dados, regras, prazos ou procedimentos.
+Se o contexto não sustentar a resposta, informe claramente que a base não possui informação suficiente."""
 
 
 class ConversationNotFoundError(ValueError):
@@ -70,6 +76,20 @@ class QuestionService:
         except Exception as exc:
             return OLLAMA_UNAVAILABLE_RESPONSE, f"{type(exc).__name__}: {exc}"
 
+    @classmethod
+    def _resolve_answer(
+        cls,
+        question: str,
+        context: str,
+        found: bool,
+        out_of_scope_response: str = OUT_OF_SCOPE_RESPONSE,
+    ) -> tuple[str, str | None, str]:
+        """Refuse deterministically when retrieval produced no approved source."""
+        if not found:
+            return out_of_scope_response, None, "sem_resposta"
+        answer, error_detail = cls._generate_answer(question, context)
+        return answer, error_detail, "erro" if error_detail else "respondida"
+
     def answer(
         self,
         student_code: str,
@@ -106,8 +126,12 @@ class QuestionService:
             if found
             else "Nenhum contexto institucional relevante foi encontrado para esta pergunta."
         )
-        answer, error_detail = self._generate_answer(question, context)
-        status = "erro" if error_detail else "respondida"
+        answer, error_detail, status = self._resolve_answer(
+            question,
+            context,
+            found,
+            ConfigurationService(self.session).out_of_scope_message(),
+        )
 
         processing_time_ms = max(0, round((perf_counter() - started_at) * 1000))
         question_log = QuestionLog(
