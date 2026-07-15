@@ -53,6 +53,23 @@ class QuestionRefusalTests(unittest.TestCase):
         self.assertIs(approved[0][0], strong)
         self.assertAlmostEqual(approved[0][1], 0.75)
 
+    def test_strong_literal_match_can_confirm_institutional_source(self) -> None:
+        repository = KnowledgeRepository(None)  # type: ignore[arg-type]
+        record = SimpleNamespace(embedding=[0.604, sqrt(1 - 0.604**2)])
+        with patch(
+            "app.repositories.conhecimento_repository.EmbeddingService.embed_query",
+            return_value=[1.0, 0.0],
+        ), patch(
+            "app.repositories.conhecimento_repository.ConfigurationService.minimum_similarity",
+            return_value=0.65,
+        ):
+            approved = repository._semantic_gate(
+                "como faço minha matrícula?",
+                [(record, 1.0)],
+                allow_strong_textual_match=True,
+            )
+        self.assertEqual(approved, [(record, 1.0)])
+
     def test_greeting_is_answered_without_support_or_llm(self) -> None:
         greeting = QuestionService._direct_conversation_response("opa")
         with patch.object(QuestionService, "_generate_answer") as generate:
@@ -84,3 +101,12 @@ class QuestionRefusalTests(unittest.TestCase):
         )
         self.assertIn("554935512034", answer)
         self.assertEqual(status, "sem_resposta")
+
+    def test_basic_arithmetic_is_answered_without_documents(self) -> None:
+        answer = QuestionService._direct_conversation_response("quanto é 2+2?")
+        self.assertEqual(answer, "O resultado de 2+2 é 4.")
+        self.assertFalse(QuestionService._requires_institutional_context("quanto é 2+2?"))
+
+    def test_conversation_opener_invites_the_actual_question(self) -> None:
+        answer = QuestionService._direct_conversation_response("tenho uma dúvida")
+        self.assertEqual(answer, "Claro! Pode enviar sua dúvida.")

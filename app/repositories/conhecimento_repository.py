@@ -1,6 +1,7 @@
 """Full-text search over the institutional knowledge base."""
 
 import re
+import unicodedata
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -20,7 +21,9 @@ class KnowledgeRepository:
         """Return relevant records using the selected search strategy."""
         limit = limit or ConfigurationService(self.session).source_limit()
         if mode == "like":
-            return self._semantic_gate(question, self.search_like(question, limit))
+            return self._semantic_gate(
+                question, self.search_like(question, limit), allow_strong_textual_match=True
+            )
         if mode == "embeddings":
             return self.search_embeddings(question, limit)
         return self._semantic_gate(question, self.search_full_text(question, limit))
@@ -29,23 +32,23 @@ class KnowledgeRepository:
         self,
         question: str,
         matches: list[tuple[Knowledge, float]],
+        allow_strong_textual_match: bool = False,
     ) -> list[tuple[Knowledge, float]]:
         """Allow textual matches only when their semantic relevance is sufficient."""
         if not matches:
             return []
         minimum_similarity = ConfigurationService(self.session).minimum_similarity()
         question_vector = EmbeddingService().embed_query(question)
-        approved = [
-            (record, cosine_similarity(question_vector, record.embedding or []))
-            for record, _ in matches
-            if record.embedding
-        ]
+        approved = []
+        for record, textual_score in matches:
+            semantic_score = cosine_similarity(question_vector, record.embedding or [])
+            strong_textual_match = allow_strong_textual_match and textual_score >= 0.8
+            if semantic_score >= minimum_similarity or (
+                strong_textual_match
+            ):
+                approved.append((record, max(semantic_score, textual_score) if strong_textual_match else semantic_score))
         return sorted(
-            (
-                (record, score)
-                for record, score in approved
-                if score >= minimum_similarity
-            ),
+            approved,
             key=lambda item: item[1],
             reverse=True,
         )
@@ -64,20 +67,36 @@ class KnowledgeRepository:
 
     def search_like(self, question: str, limit: int) -> list[tuple[Knowledge, float]]:
         """Search title and content with case-insensitive LIKE terms."""
-        terms = [term for term in re.findall(r"[A-Za-zÀ-ÿ0-9]+", question) if len(term) >= 4]
+        ignored_terms = {"como", "faco", "faço", "onde", "qual", "quais", "para", "sobre", "uma", "meu", "minha"}
+        terms = [
+            self._remove_accents(term.lower())
+            for term in re.findall(r"[A-Za-zÀ-ÿ0-9]+", question)
+            if len(term) >= 4 and term.lower() not in ignored_terms
+        ]
         if not terms:
             terms = [question]
-        conditions = [
-            or_(Knowledge.title.ilike(f"%{term}%"), Knowledge.content.ilike(f"%{term}%"))
-            for term in terms
-        ]
+        source_characters = "áàâãäéèêëíìîïóòôõöúùûüç"
+        target_characters = "aaaaaeeeeiiiiooooouuuuc"
+        normalized_title = func.translate(func.lower(Knowledge.title), source_characters, target_characters)
+        normalized_content = func.translate(func.lower(Knowledge.content), source_characters, target_characters)
+        conditions = [or_(normalized_title.contains(term), normalized_content.contains(term)) for term in terms]
         statement = (
             select(Knowledge)
             .where(Knowledge.active.is_(True), or_(*conditions))
             .order_by(Knowledge.id.desc())
             .limit(limit)
         )
-        return [(knowledge, 1.0) for knowledge in self.session.scalars(statement).all()]
+        results = []
+        for knowledge in self.session.scalars(statement).all():
+            searchable = self._remove_accents(f"{knowledge.title} {knowledge.content}".lower())
+            matched_terms = sum(term in searchable for term in terms)
+            results.append((knowledge, matched_terms / max(1, len(terms))))
+        return results
+
+    @staticmethod
+    def _remove_accents(text: str) -> str:
+        normalized = unicodedata.normalize("NFKD", text)
+        return "".join(character for character in normalized if not unicodedata.combining(character))
 
     def search_embeddings(self, question: str, limit: int) -> list[tuple[Knowledge, float]]:
         """Rank active knowledge chunks by semantic cosine similarity."""

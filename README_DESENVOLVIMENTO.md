@@ -63,6 +63,9 @@ navegador para restaurar a sessão depois de atualizar ou fechar a página. Ao
 abrir a aplicação, o token é validado pela API; sessões expiradas são removidas
 automaticamente. A senha nunca é armazenada no navegador.
 
+Depois de restaurar uma sessão ou concluir um novo login, o frontend consulta
+automaticamente as conversas do aluno para preencher o histórico lateral.
+
 As senhas não são armazenadas diretamente. O sistema salva apenas o hash
 gerado com bcrypt.
 
@@ -87,6 +90,11 @@ social e não consultam os documentos. Assuntos gerais fora do foco acadêmico
 recebem apenas uma orientação sobre o objetivo do assistente. O contato do
 suporte é mostrado somente quando a pergunta é institucional e a base não
 possui uma fonte suficiente para respondê-la.
+
+Interações simples, como cálculos aritméticos básicos, também são respondidas
+diretamente e não dependem da base institucional. No frontend, a conversa
+acompanha automaticamente as novas mensagens e o menu do usuário fecha ao
+clicar fora dele ou pressionar `Esc`.
 
 Mesmo nos modos LIKE e Full Text, os resultados textuais passam por uma
 validação semântica antes da geração. Isso evita que uma palavra genérica

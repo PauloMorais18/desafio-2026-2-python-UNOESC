@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StatisticsDashboard } from "./components/StatisticsDashboard";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -16,6 +16,9 @@ function getApiErrorMessage(detail, fallback) {
 }
 
 function App() {
+  const chatScrollRef = useRef(null);
+  const userMenuRef = useRef(null);
+  const userMenuButtonRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [activeConversation, setActiveConversation] = useState("");
   const [currentChatId, setCurrentChatId] = useState(null);
@@ -84,6 +87,7 @@ function App() {
           setStudentCode(restoredCode);
           setProfile(body);
           window.localStorage.setItem(STUDENT_STORAGE_KEY, restoredCode);
+          await loadConversationList(accessToken);
         }
       } catch {
         // Mantém a sessão em cache quando a API estiver temporariamente indisponível.
@@ -93,6 +97,50 @@ function App() {
     restoreSession();
     return () => { cancelled = true; };
   }, [accessToken]);
+
+  async function loadConversationList(token = accessToken) {
+    const response = await fetch(`${API_URL}/conversas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(getApiErrorMessage(body.detail, "Não foi possível carregar o histórico."));
+    }
+    setChatHistory((current) => body.map((conversation) => {
+      const existing = current.find((chat) => chat.id === conversation.chaveConversa);
+      return {
+        id: conversation.chaveConversa,
+        title: conversation.title,
+        messages: existing?.messages || [],
+      };
+    }));
+  }
+
+  useEffect(() => {
+    const chat = chatScrollRef.current;
+    if (chat) chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
+  }, [messages, isAnswering]);
+
+  useEffect(() => {
+    if (!showUserMenu) return undefined;
+    function closeMenuOnOutsideInteraction(event) {
+      if (
+        !userMenuRef.current?.contains(event.target)
+        && !userMenuButtonRef.current?.contains(event.target)
+      ) {
+        setShowUserMenu(false);
+      }
+    }
+    function closeMenuOnEscape(event) {
+      if (event.key === "Escape") setShowUserMenu(false);
+    }
+    window.document.addEventListener("pointerdown", closeMenuOnOutsideInteraction);
+    window.document.addEventListener("keydown", closeMenuOnEscape);
+    return () => {
+      window.document.removeEventListener("pointerdown", closeMenuOnOutsideInteraction);
+      window.document.removeEventListener("keydown", closeMenuOnEscape);
+    };
+  }, [showUserMenu]);
 
   function startNewChat() {
     setActiveConversation("");
@@ -380,13 +428,7 @@ function App() {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/conversas`, { headers: { Authorization: `Bearer ${accessToken}` } });
-      const body = await response.json();
-      if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível carregar o histórico."));
-      setChatHistory((current) => body.map((conversation) => {
-        const existing = current.find((chat) => chat.id === conversation.chaveConversa);
-        return { id: conversation.chaveConversa, title: conversation.title, messages: existing?.messages || [] };
-      }));
+      await loadConversationList();
       setShowHistory(true);
     } catch (error) {
       setLoginError(error.message || "Não foi possível carregar o histórico.");
@@ -490,9 +532,9 @@ function App() {
       </aside>
 
       <section className="content">
-        <header className="topbar"><div><h1>Bem-vindo ao <strong>Assistente Acadêmico</strong></h1><p>Tire dúvidas utilizando a base de conhecimento da instituição.</p></div><div className="account-actions"><span className="version">Versão 1.0</span>{accessToken ? <button className="account" type="button" onClick={logout}><div className="profile-avatar" aria-hidden="true">♙</div><div className="profile-copy"><strong>Aluno {studentCode}</strong><span>Clique para sair</span></div></button> : <><button className="auth-action" type="button" onClick={() => openAuth("login")}>Entrar</button><button className="auth-action primary" type="button" onClick={() => openAuth("register")}>Criar conta</button></>}<button className="hamburger-button" type="button" aria-label="Abrir menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu(!showUserMenu)}><span /><span /><span /></button></div></header>
+        <header className="topbar"><div><h1>Bem-vindo ao <strong>Assistente Acadêmico</strong></h1><p>Tire dúvidas utilizando a base de conhecimento da instituição.</p></div><div className="account-actions"><span className="version">Versão 1.0</span>{accessToken ? <button className="account" type="button" onClick={logout}><div className="profile-avatar" aria-hidden="true">♙</div><div className="profile-copy"><strong>Aluno {studentCode}</strong><span>Clique para sair</span></div></button> : <><button className="auth-action" type="button" onClick={() => openAuth("login")}>Entrar</button><button className="auth-action primary" type="button" onClick={() => openAuth("register")}>Criar conta</button></>}<button ref={userMenuButtonRef} className="hamburger-button" type="button" aria-label="Abrir menu" aria-expanded={showUserMenu} onClick={() => setShowUserMenu(!showUserMenu)}><span /><span /><span /></button></div></header>
 
-        {showUserMenu && <aside className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item mobile-new-chat" type="button" onClick={() => { startNewChat(); setShowUserMenu(false); }}><span>＋</span>Novo chat</button><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={openSettings}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
+        {showUserMenu && <aside ref={userMenuRef} className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item mobile-new-chat" type="button" onClick={() => { startNewChat(); setShowUserMenu(false); }}><span>＋</span>Novo chat</button><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={openSettings}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
 
         {showStatistics && <StatisticsDashboard statistics={statistics} loading={statisticsLoading} error={statisticsError} onBack={() => setShowStatistics(false)} onRefresh={openStatistics} />}
         {showDocumentation && <DocumentationScreen documentation={apiDocumentation} loading={documentationLoading} error={documentationError} onBack={() => setShowDocumentation(false)} onRefresh={openDocumentation} />}
@@ -504,7 +546,7 @@ function App() {
           {showNotice && <section className="information-card"><span className="information-icon" aria-hidden="true">ⓘ</span><div><p>O assistente responde apenas perguntas presentes na base de conhecimento cadastrada pela instituição.</p><p>Caso não encontre informações suficientes, ele informará isso ao usuário.</p></div><button type="button" aria-label="Fechar aviso" className="close-notice" onClick={() => setShowNotice(false)}>×</button></section>}
           {showLogin && <section className="login-card" aria-label={authMode === "login" ? "Login do aluno" : "Cadastro do aluno"}><div><h2>{authMode === "login" ? "Acesse sua conta" : "Crie sua conta"}</h2><p>{authMode === "login" ? "Entre com seu código de aluno e senha para enviar perguntas." : "Use seu código de aluno e defina uma senha com pelo menos 8 caracteres."}</p><button className="auth-switch" type="button" onClick={() => { setAuthMode(authMode === "login" ? "register" : "login"); setLoginError(""); }}>{authMode === "login" ? "Ainda não possui conta? Criar agora" : "Já possui conta? Entrar"}</button></div><form onSubmit={authMode === "login" ? login : register}><input value={loginCode} onChange={(event) => setLoginCode(event.target.value)} placeholder="Código do aluno" aria-label="Código do aluno" /><div className="password-field"><input value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} type={showPassword ? "text" : "password"} minLength="8" placeholder="Senha" aria-label="Senha" /><button type="button" className="toggle-password" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "Ocultar" : "Ver"}</button></div>{authMode === "register" && <input value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} type={showPassword ? "text" : "password"} minLength="8" placeholder="Confirme sua senha" aria-label="Confirme sua senha" />}<button type="submit" disabled={isLoggingIn}>{isLoggingIn ? "Aguarde..." : authMode === "login" ? "Entrar" : "Criar conta"}</button></form>{loginError && <p className="login-error" role="alert">{loginError}</p>}</section>}
           <section className={`chat-experience ${messages.length ? "has-messages" : "is-empty"}`} aria-label="Conversa atual">
-            {messages.length ? <div className="chat-card"><div className="messages">{messages.map((message) => <MessageBubble key={message.id} message={message} />)}{isAnswering && <div className="typing-indicator">O assistente está preparando uma resposta...</div>}</div></div> : <div className="empty-chat-intro"><span className="intro-symbol" aria-hidden="true">◢</span><h2>Como posso ajudar?</h2><p>{accessToken ? "Envie uma dúvida para iniciar a conversa." : "Faça login para enviar uma dúvida acadêmica."}</p></div>}
+            {messages.length ? <div ref={chatScrollRef} className="chat-card"><div className="messages">{messages.map((message) => <MessageBubble key={message.id} message={message} />)}{isAnswering && <div className="typing-indicator">O assistente está preparando uma resposta...</div>}</div></div> : <div className="empty-chat-intro"><span className="intro-symbol" aria-hidden="true">◢</span><h2>Como posso ajudar?</h2><p>{accessToken ? "Envie uma dúvida para iniciar a conversa." : "Faça login para enviar uma dúvida acadêmica."}</p></div>}
             <div className="composer-wrapper">{messages.length > 0 && <p className="response-note">As respostas podem levar alguns segundos para serem geradas.</p>}<form className="message-composer" onSubmit={sendMessage}><span className="attachment" aria-hidden="true">⌇</span><input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Digite sua dúvida acadêmica..." aria-label="Digite sua dúvida acadêmica" /><button type="submit" disabled={isAnswering}><span aria-hidden="true">⌁</span> Enviar</button></form></div>
           </section>
         </>}

@@ -1,6 +1,8 @@
 """Question-answering use case backed by the local Ollama model."""
 
 from datetime import UTC, datetime
+import ast
+import operator
 import re
 import unicodedata
 from time import perf_counter
@@ -98,7 +100,47 @@ class QuestionService:
             return "Por nada! Se precisar, posso ajudar com outra dúvida acadêmica."
         if re.fullmatch(r"(tchau|ate logo|ate mais|falou|boa noite)", text):
             return "Até mais! Estou à disposição quando precisar."
+        if re.fullmatch(r"(tenho uma duvida|estou com uma duvida|posso fazer uma pergunta)", text):
+            return "Claro! Pode enviar sua dúvida."
+        calculation = cls._safe_calculation_response(question)
+        if calculation is not None:
+            return calculation
         return None
+
+    @staticmethod
+    def _safe_calculation_response(question: str) -> str | None:
+        """Answer basic arithmetic without using institutional context or arbitrary code."""
+        expression_match = re.search(r"(-?\d+(?:[.,]\d+)?(?:\s*[+\-*/]\s*-?\d+(?:[.,]\d+)?)+)", question)
+        if expression_match is None:
+            return None
+        expression = expression_match.group(1).replace(",", ".")
+        operations = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+        }
+
+        def evaluate(node: ast.AST) -> float:
+            if isinstance(node, ast.Expression):
+                return evaluate(node.body)
+            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                return float(node.value)
+            if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+                value = evaluate(node.operand)
+                return value if isinstance(node.op, ast.UAdd) else -value
+            if isinstance(node, ast.BinOp) and type(node.op) in operations:
+                return operations[type(node.op)](evaluate(node.left), evaluate(node.right))
+            raise ValueError("Expressão não permitida.")
+
+        try:
+            result = evaluate(ast.parse(expression, mode="eval"))
+        except (SyntaxError, ValueError, ZeroDivisionError, OverflowError):
+            return None
+        if abs(result) > 1_000_000_000:
+            return None
+        formatted = str(int(result)) if result.is_integer() else f"{result:.6f}".rstrip("0").rstrip(".")
+        return f"O resultado de {expression} é {formatted}."
 
     @classmethod
     def _requires_institutional_context(cls, question: str) -> bool:
@@ -156,7 +198,11 @@ class QuestionService:
         )
         direct_response = self._direct_conversation_response(question)
         requires_institutional_context = self._requires_institutional_context(question)
-        matches = [] if direct_response is not None else self.knowledge.search(question, search_mode)
+        matches = (
+            []
+            if direct_response is not None or not requires_institutional_context
+            else self.knowledge.search(question, search_mode)
+        )
         found = bool(matches)
         sources = [
             KnowledgeSourceResponse(
