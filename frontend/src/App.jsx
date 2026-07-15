@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StatisticsDashboard } from "./components/StatisticsDashboard";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 const MOCK_RESPONSE = "Esta conversa é apenas um item ilustrativo do histórico.";
+const TOKEN_STORAGE_KEY = "unoassist_access_token";
+const STUDENT_STORAGE_KEY = "unoassist_student_code";
 
 function formatTime() {
   return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date());
@@ -22,8 +24,8 @@ function App() {
   const [isAnswering, setIsAnswering] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showNotice, setShowNotice] = useState(true);
-  const [accessToken, setAccessToken] = useState("");
-  const [studentCode, setStudentCode] = useState("");
+  const [accessToken, setAccessToken] = useState(() => window.localStorage.getItem(TOKEN_STORAGE_KEY) || "");
+  const [studentCode, setStudentCode] = useState(() => window.localStorage.getItem(STUDENT_STORAGE_KEY) || "");
   const [showLogin, setShowLogin] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [loginCode, setLoginCode] = useState("");
@@ -55,6 +57,42 @@ function App() {
   const [apiDocumentation, setApiDocumentation] = useState(null);
   const [documentationLoading, setDocumentationLoading] = useState(false);
   const [documentationError, setDocumentationError] = useState("");
+
+  useEffect(() => {
+    if (!accessToken) return undefined;
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const response = await fetch(`${API_URL}/perfil`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (response.status === 401) {
+          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+          window.localStorage.removeItem(STUDENT_STORAGE_KEY);
+          if (!cancelled) {
+            setAccessToken("");
+            setStudentCode("");
+            setChatHistory([]);
+          }
+          return;
+        }
+        if (!response.ok) return;
+        const body = await response.json();
+        if (!cancelled) {
+          const restoredCode = String(body.codigoAluno);
+          setStudentCode(restoredCode);
+          setProfile(body);
+          window.localStorage.setItem(STUDENT_STORAGE_KEY, restoredCode);
+        }
+      } catch {
+        // Mantém a sessão em cache quando a API estiver temporariamente indisponível.
+      }
+    }
+
+    restoreSession();
+    return () => { cancelled = true; };
+  }, [accessToken]);
 
   function startNewChat() {
     setActiveConversation("");
@@ -109,6 +147,8 @@ function App() {
       if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível realizar o login."));
       setAccessToken(body.access_token);
       setStudentCode(loginCode.trim());
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, body.access_token);
+      window.localStorage.setItem(STUDENT_STORAGE_KEY, loginCode.trim());
       setLoginPassword("");
       setShowLogin(false);
     } catch (error) {
@@ -137,6 +177,8 @@ function App() {
       if (!response.ok) throw new Error(getApiErrorMessage(body.detail, "Não foi possível criar sua conta."));
       setAccessToken(body.access_token);
       setStudentCode(loginCode.trim());
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, body.access_token);
+      window.localStorage.setItem(STUDENT_STORAGE_KEY, loginCode.trim());
       setLoginPassword("");
       setPasswordConfirmation("");
       setShowLogin(false);
@@ -148,9 +190,13 @@ function App() {
   }
 
   function logout() {
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    window.localStorage.removeItem(STUDENT_STORAGE_KEY);
     setAccessToken("");
     setStudentCode("");
     setMessages([]);
+    setChatHistory([]);
+    setProfile(null);
     setShowUserMenu(false);
   }
 
@@ -452,7 +498,7 @@ function App() {
         {showDocumentation && <DocumentationScreen documentation={apiDocumentation} loading={documentationLoading} error={documentationError} onBack={() => setShowDocumentation(false)} onRefresh={openDocumentation} />}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}
-        {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>busca por similaridade semântica</small></label></fieldset><div className="runtime-settings"><label>Telefone do suporte (país + DDD + número)<input value={runtimeSettings.telefoneSuporteWhatsapp} inputMode="numeric" onChange={(event) => setRuntimeSettings({ ...runtimeSettings, telefoneSuporteWhatsapp: event.target.value.replace(/\D/g, "") })} /></label><label>Mensagem para assuntos fora da base<textarea value={runtimeSettings.mensagemForaEscopo} onChange={(event) => setRuntimeSettings({ ...runtimeSettings, mensagemForaEscopo: event.target.value })} /><small>Use {"{telefone}"} para inserir o número configurado.</small></label><label>Similaridade mínima dos embeddings<input type="number" min="0" max="1" step="0.01" value={runtimeSettings.similaridadeMinimaEmbeddings} onChange={(event) => setRuntimeSettings({ ...runtimeSettings, similaridadeMinimaEmbeddings: Number(event.target.value) })} /></label><label>Máximo de fontes por resposta<input type="number" min="1" max="10" value={runtimeSettings.limiteFontes} onChange={(event) => setRuntimeSettings({ ...runtimeSettings, limiteFontes: Number(event.target.value) })} /></label></div>{settingsError && <p className="settings-error">{settingsError}</p>}<button className="settings-save" type="button" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? "Salvando..." : "Salvar configurações"}</button><p>O modo de busca fica salvo neste navegador; as demais opções são armazenadas no banco.</p></section></div>}
+        {showSettings && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowSettings(false)}><section className="modal-card settings-modal" role="dialog" aria-modal="true" aria-label="Configurações" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowSettings(false)}>×</button><h2>Configurações gerais</h2><label className="setting-option"><span>Notificações do assistente</span><input type="checkbox" checked={notificationsEnabled} onChange={(event) => setNotificationsEnabled(event.target.checked)} /></label><fieldset className="search-mode"><legend>Modo de busca</legend><label><input type="radio" name="search-mode" checked={searchMode === "like"} onChange={() => changeSearchMode("like")} /> Like <small>padrão</small></label><label><input type="radio" name="search-mode" checked={searchMode === "full_text"} onChange={() => changeSearchMode("full_text")} /> Full Text</label><label><input type="radio" name="search-mode" checked={searchMode === "embeddings"} onChange={() => changeSearchMode("embeddings")} /> Embeddings <small>busca por similaridade semântica</small></label></fieldset><div className="runtime-settings"><label>Telefone do suporte (país + DDD + número)<input value={runtimeSettings.telefoneSuporteWhatsapp} inputMode="numeric" onChange={(event) => setRuntimeSettings({ ...runtimeSettings, telefoneSuporteWhatsapp: event.target.value.replace(/\D/g, "") })} /></label><label>Mensagem para assuntos fora da base<textarea value={runtimeSettings.mensagemForaEscopo} onChange={(event) => setRuntimeSettings({ ...runtimeSettings, mensagemForaEscopo: event.target.value })} /><small>Use {"{telefone}"} para inserir o número configurado.</small></label></div>{settingsError && <p className="settings-error">{settingsError}</p>}<button className="settings-save" type="button" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? "Salvando..." : "Salvar configurações"}</button><p>O modo de busca fica salvo neste navegador; as demais opções são armazenadas no banco.</p></section></div>}
 
         {showDocuments ? <section className="documents-screen"><div className="history-screen-header"><div><h2>Documentos de contexto</h2><p>Arquivos armazenados em <code>contexto/documentos</code>.</p></div><div className="documents-actions"><button type="button" onClick={() => loadDocuments(true)}>Atualizar</button><label className="upload-button">Enviar documento<input type="file" accept=".pdf,.txt,.doc,.docx,.md" onChange={handleContextFile} /></label><button type="button" onClick={() => setShowDocuments(false)}>Voltar ao chat</button></div></div>{documentsLoading ? <div className="history-empty"><p>Buscando documentos...</p></div> : documentsError ? <div className="history-empty"><p>{documentsError}</p></div> : documents?.length ? <div className="documents-list">{documents.map((document) => <article className="document-row" key={document.id}><div><strong>{document.nome}</strong><span>{Math.max(1, Math.ceil(document.tamanho / 1024))} KB</span></div><div className="document-actions"><button type="button" onClick={() => viewDocument(document)}>Visualizar</button><button type="button" className="danger" onClick={() => deleteDocument(document)}>Excluir</button></div></article>)}</div> : <div className="history-empty"><h3>Nenhum documento enviado</h3><p>Envie um PDF, TXT, MD, DOC ou DOCX para preparar a base de conhecimento.</p></div>}</section> : showHistory ? <section className="history-screen"><div className="history-screen-header"><div><h2>Histórico de chats</h2><p>Cada card é identificado pela primeira mensagem enviada.</p></div><button type="button" onClick={() => setShowHistory(false)}>Voltar ao chat</button></div>{chatHistory.length ? <div className="history-cards">{chatHistory.map((chat) => <button type="button" className="history-card" key={chat.id} onClick={() => selectConversation(chat)}><span>Chat</span><strong>{chat.title}</strong><small>{chat.messages.length} mensagem(ns)</small></button>)}</div> : <div className="history-empty"><h3>Nenhuma conversa ainda</h3><p>Envie sua primeira pergunta para criar um chat.</p></div>}</section> : showAbout ? <section className="about-card"><span className="about-icon">ⓘ</span><div><h2>Sobre o UnoAssist</h2><p>Protótipo de assistente acadêmico para orientar alunos usando a base de conhecimento institucional.</p><p><strong>Versão:</strong> 1.0 · <strong>Tecnologias:</strong> React, FastAPI e PostgreSQL.</p></div></section> : <>
           {showNotice && <section className="information-card"><span className="information-icon" aria-hidden="true">ⓘ</span><div><p>O assistente responde apenas perguntas presentes na base de conhecimento cadastrada pela instituição.</p><p>Caso não encontre informações suficientes, ele informará isso ao usuário.</p></div><button type="button" aria-label="Fechar aviso" className="close-notice" onClick={() => setShowNotice(false)}>×</button></section>}

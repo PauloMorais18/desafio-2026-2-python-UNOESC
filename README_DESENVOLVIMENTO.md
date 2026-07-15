@@ -58,6 +58,11 @@ O aluno pode criar uma conta ou entrar usando seu código e senha. Depois do
 login, a API retorna um token JWT. Esse token identifica o aluno e protege as
 rotas que acessam perguntas, conversas, documentos e estatísticas.
 
+O frontend mantém o token e o código do aluno no armazenamento local do
+navegador para restaurar a sessão depois de atualizar ou fechar a página. Ao
+abrir a aplicação, o token é validado pela API; sessões expiradas são removidas
+automaticamente. A senha nunca é armazenada no navegador.
+
 As senhas não são armazenadas diretamente. O sistema salva apenas o hash
 gerado com bcrypt.
 
@@ -76,6 +81,12 @@ Quando a busca não encontra uma fonte com relevância suficiente, o backend
 responde com uma recusa padronizada e não chama o modelo de linguagem. Esse
 resultado é registrado como `sem_resposta`. Assim, assuntos fora da base não
 dependem da decisão do Ollama e também aparecem nas estatísticas de qualidade.
+
+Saudações, agradecimentos e despedidas são tratados diretamente como conversa
+social e não consultam os documentos. Assuntos gerais fora do foco acadêmico
+recebem apenas uma orientação sobre o objetivo do assistente. O contato do
+suporte é mostrado somente quando a pergunta é institucional e a base não
+possui uma fonte suficiente para respondê-la.
 
 Mesmo nos modos LIKE e Full Text, os resultados textuais passam por uma
 validação semântica antes da geração. Isso evita que uma palavra genérica

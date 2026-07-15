@@ -1,6 +1,8 @@
 """Question-answering use case backed by the local Ollama model."""
 
 from datetime import UTC, datetime
+import re
+import unicodedata
 from time import perf_counter
 from uuid import UUID
 
@@ -26,6 +28,10 @@ OUT_OF_SCOPE_RESPONSE = (
     DEFAULT_SETTINGS["mensagem_fora_escopo"].replace(
         "{telefone}", DEFAULT_SETTINGS["telefone_suporte_whatsapp"]
     )
+)
+GENERAL_SCOPE_RESPONSE = (
+    "Posso ajudar com dúvidas acadêmicas e institucionais. "
+    "Para outros assuntos, faça uma pergunta relacionada à instituição."
 )
 SYSTEM_PROMPT = """Você é o Assistente Acadêmico da instituição.
 Responda em português do Brasil, de forma objetiva e cordial.
@@ -76,6 +82,39 @@ class QuestionService:
         except Exception as exc:
             return OLLAMA_UNAVAILABLE_RESPONSE, f"{type(exc).__name__}: {exc}"
 
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        normalized = unicodedata.normalize("NFKD", text.lower())
+        without_accents = "".join(character for character in normalized if not unicodedata.combining(character))
+        return re.sub(r"[^a-z0-9 ]+", " ", without_accents).strip()
+
+    @classmethod
+    def _direct_conversation_response(cls, question: str) -> str | None:
+        """Answer simple social interactions without consulting institutional documents."""
+        text = cls._normalize_text(question)
+        if re.fullmatch(r"(oi|ola|opa|e ai|bom dia|boa tarde|boa noite)( tudo bem)?", text):
+            return "Olá! Como posso ajudar com sua dúvida acadêmica?"
+        if re.fullmatch(r"(obrigado|obrigada|valeu|agradeco|muito obrigado|muito obrigada)", text):
+            return "Por nada! Se precisar, posso ajudar com outra dúvida acadêmica."
+        if re.fullmatch(r"(tchau|ate logo|ate mais|falou|boa noite)", text):
+            return "Até mais! Estou à disposição quando precisar."
+        return None
+
+    @classmethod
+    def _requires_institutional_context(cls, question: str) -> bool:
+        """Identify questions that should be answered from institutional documents."""
+        text = cls._normalize_text(question)
+        institutional_terms = {
+            "academico", "aluno", "aula", "biblioteca", "boleto", "bolsa",
+            "calendario", "campus", "certificado", "chamada", "coordenacao",
+            "curso", "diploma", "disciplina", "documento", "estagio", "faculdade",
+            "falta", "frequencia", "horario", "inscricao", "instituicao", "materia",
+            "matricula", "mensalidade", "nota", "portal", "professor", "prova",
+            "rematricula", "secretaria", "trabalho", "universidade", "vestibular",
+        }
+        words = set(text.split())
+        return bool(words & institutional_terms)
+
     @classmethod
     def _resolve_answer(
         cls,
@@ -83,10 +122,16 @@ class QuestionService:
         context: str,
         found: bool,
         out_of_scope_response: str = OUT_OF_SCOPE_RESPONSE,
+        direct_response: str | None = None,
+        requires_institutional_context: bool = True,
     ) -> tuple[str, str | None, str]:
         """Refuse deterministically when retrieval produced no approved source."""
+        if direct_response is not None:
+            return direct_response, None, "respondida"
         if not found:
-            return out_of_scope_response, None, "sem_resposta"
+            if requires_institutional_context:
+                return out_of_scope_response, None, "sem_resposta"
+            return GENERAL_SCOPE_RESPONSE, None, "respondida"
         answer, error_detail = cls._generate_answer(question, context)
         return answer, error_detail, "erro" if error_detail else "respondida"
 
@@ -109,7 +154,9 @@ class QuestionService:
                 processing_time_ms=None,
             )
         )
-        matches = self.knowledge.search(question, search_mode)
+        direct_response = self._direct_conversation_response(question)
+        requires_institutional_context = self._requires_institutional_context(question)
+        matches = [] if direct_response is not None else self.knowledge.search(question, search_mode)
         found = bool(matches)
         sources = [
             KnowledgeSourceResponse(
@@ -131,6 +178,8 @@ class QuestionService:
             context,
             found,
             ConfigurationService(self.session).out_of_scope_message(),
+            direct_response,
+            requires_institutional_context,
         )
 
         processing_time_ms = max(0, round((perf_counter() - started_at) * 1000))

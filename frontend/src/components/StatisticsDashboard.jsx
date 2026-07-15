@@ -52,7 +52,7 @@ export function StatisticsDashboard({ statistics, loading, error, onBack, onRefr
       {activeShortcut === "geral" && <>
         <div className="dashboard-metric-grid">
           <StatisticCard icon="◫" title="Total de perguntas" value={summary.total_questions ?? 0} detail="Todos os registros armazenados" tone="blue" />
-          <StatisticCard icon="✓" title="Perguntas respondidas" value={summary.answered_questions ?? 0} detail="Respostas concluídas pela API" tone="green" />
+          <StatisticCard icon="✓" title="Perguntas respondidas" value={summary.answered_questions ?? 0} detail="Respostas registradas no banco" tone="green" />
           <StatisticCard icon="!" title="Sem resposta ou erro" value={unansweredToday} detail="Ocorrências registradas hoje" tone="orange" />
           <StatisticCard icon="◷" title="Tempo médio" value={`${responseTime} ms`} detail="Processamento das respostas" tone="teal" />
         </div>
@@ -67,9 +67,9 @@ export function StatisticsDashboard({ statistics, loading, error, onBack, onRefr
       </>}
 
       {activeShortcut === "perguntas" && <>
-        <div className="dashboard-metric-grid dashboard-metric-grid-compact"><StatisticCard icon="◫" title="Perguntas hoje" value={totalToday} detail={daily.data || "Data atual"} tone="blue" /></div>
+        <div className="dashboard-metric-grid dashboard-metric-grid-full"><StatisticCard icon="◫" title="Perguntas hoje" value={totalToday} detail={daily.data || "Data atual"} tone="blue" /></div>
         <div className="dashboard-chart-grid dashboard-chart-grid-two">
-          <ChartCard title="Perguntas por dia" description="Dados do período disponível na API."><ResponsiveContainer width="100%" height={270}><LineChart data={dailySeries}><XAxis dataKey="data" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip /><Legend /><Line type="monotone" dataKey="perguntas" name="Perguntas" stroke="#0d55a2" strokeWidth={3} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></ChartCard>
+          <ChartCard title="Perguntas por dia" description="Registros do período armazenados no banco."><ResponsiveContainer width="100%" height={270}><LineChart data={dailySeries}><XAxis dataKey="data" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip /><Legend /><Line type="monotone" dataKey="perguntas" name="Perguntas" stroke="#0d55a2" strokeWidth={3} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></ChartCard>
           <ChartCard title="Perguntas por aluno" description="Top 10 alunos por quantidade de perguntas."><ResponsiveContainer width="100%" height={270}><BarChart data={students} layout="vertical" margin={{ left: 8 }}><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="codigoAluno" width={68} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="totalPerguntas" name="Perguntas" fill="#0d55a2" radius={[0, 6, 6, 0]} /></BarChart></ResponsiveContainer></ChartCard>
         </div>
       </>}
@@ -80,10 +80,9 @@ export function StatisticsDashboard({ statistics, loading, error, onBack, onRefr
       </>}
 
       {activeShortcut === "desempenho" && <>
-        <div className="dashboard-metric-grid dashboard-metric-grid-compact"><StatisticCard icon="◷" title="Tempo médio de resposta" value={`${responseTime} ms`} detail="Todas as respostas armazenadas" tone="teal" /></div>
-        <div className="dashboard-chart-grid dashboard-chart-grid-single"><ChartCard title="Tempo médio de resposta" description="Tempo de processamento retornado pelo endpoint RF06."><div className="response-time-chart"><span>0 ms</span><div><i style={{ width: `${Math.min(100, Math.max(2, responseTime / 10))}%` }} /></div><span>1.000 ms</span><strong>{responseTime} ms</strong><small>Referência visual: até 1 segundo.</small></div></ChartCard></div>
+        <div className="dashboard-metric-grid dashboard-metric-grid-full"><StatisticCard icon="◷" title="Tempo médio de resposta" value={`${responseTime} ms`} detail="Todas as respostas armazenadas" tone="teal" /></div>
+        <div className="dashboard-chart-grid dashboard-chart-grid-single"><ChartCard title="Tempo médio de resposta" description="Média calculada a partir dos registros do banco."><div className="response-time-chart"><span>0 ms</span><div><i style={{ width: `${Math.min(100, Math.max(2, responseTime / 10))}%` }} /></div><span>1.000 ms</span><strong>{responseTime} ms</strong><small>Referência visual: até 1 segundo.</small></div></ChartCard></div>
       </>}
-      <div className="statistics-note"><strong>Fonte dos dados:</strong> os indicadores exibidos utilizam somente os endpoints existentes do RF06.</div>
     </div>}
   </section>;
 }

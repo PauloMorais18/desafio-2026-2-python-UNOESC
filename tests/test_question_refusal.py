@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app.repositories.conhecimento_repository import KnowledgeRepository
-from app.services.pergunta_service import OUT_OF_SCOPE_RESPONSE, QuestionService
+from app.services.pergunta_service import GENERAL_SCOPE_RESPONSE, OUT_OF_SCOPE_RESPONSE, QuestionService
 
 
 class QuestionRefusalTests(unittest.TestCase):
@@ -52,3 +52,35 @@ class QuestionRefusalTests(unittest.TestCase):
         self.assertEqual(len(approved), 1)
         self.assertIs(approved[0][0], strong)
         self.assertAlmostEqual(approved[0][1], 0.75)
+
+    def test_greeting_is_answered_without_support_or_llm(self) -> None:
+        greeting = QuestionService._direct_conversation_response("opa")
+        with patch.object(QuestionService, "_generate_answer") as generate:
+            answer, error, status = QuestionService._resolve_answer(
+                "opa", "", False, direct_response=greeting,
+                requires_institutional_context=False,
+            )
+        self.assertIn("Olá", answer)
+        self.assertNotIn("554935512034", answer)
+        self.assertIsNone(error)
+        self.assertEqual(status, "respondida")
+        generate.assert_not_called()
+
+    def test_general_subject_does_not_send_user_to_support(self) -> None:
+        answer, error, status = QuestionService._resolve_answer(
+            "Qual é a previsão do tempo?", "", False,
+            requires_institutional_context=False,
+        )
+        self.assertEqual(answer, GENERAL_SCOPE_RESPONSE)
+        self.assertNotIn("WhatsApp", answer)
+        self.assertIsNone(error)
+        self.assertEqual(status, "respondida")
+
+    def test_institutional_question_without_source_uses_support(self) -> None:
+        self.assertTrue(QuestionService._requires_institutional_context("Como faço minha matrícula?"))
+        answer, _, status = QuestionService._resolve_answer(
+            "Como faço minha matrícula?", "", False,
+            requires_institutional_context=True,
+        )
+        self.assertIn("554935512034", answer)
+        self.assertEqual(status, "sem_resposta")

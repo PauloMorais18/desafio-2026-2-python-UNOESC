@@ -129,6 +129,8 @@ Quando não há conteúdo relevante na base, o Ollama não é chamado. O backend
 
 O telefone e o texto dessa orientação são mantidos na tabela `configuracoes` e podem ser alterados pela aba Configurações. A interface reconhece o número presente na resposta e exibe somente os dígitos como link para `wa.me`. A mesma tabela mantém o limite de similaridade dos embeddings e o máximo de fontes por resposta. Os endpoints autenticados `GET /configuracoes` e `PUT /configuracoes` fazem a leitura e atualização dessas opções.
 
+Saudações, agradecimentos e despedidas são identificados antes da busca e recebem uma resposta social direta. Perguntas gerais fora do objetivo acadêmico recebem uma orientação de escopo sem telefone. O suporte por WhatsApp é apresentado apenas quando a pergunta exige informação institucional e nenhuma fonte confiável é encontrada.
+
 ## RF05 — Histórico de conversas
 
 O histórico persistente foi implementado com duas tabelas relacionadas:

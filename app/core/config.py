@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     db_password: str = ""
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 10080
     ollama_url: str = "http://localhost:11434"
     model_name: str = "qwen2.5:3b"
     embedding_model_name: str = "nomic-embed-text"
