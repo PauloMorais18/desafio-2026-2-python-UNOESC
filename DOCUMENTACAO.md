@@ -131,6 +131,8 @@ O telefone e o texto dessa orientação são mantidos na tabela `configuracoes` 
 
 Saudações, agradecimentos e despedidas são identificados antes da busca e recebem uma resposta social direta. Perguntas gerais fora do objetivo acadêmico recebem uma orientação de escopo sem telefone. O suporte por WhatsApp é apresentado apenas quando a pergunta exige informação institucional e nenhuma fonte confiável é encontrada.
 
+Para perguntas institucionais, o modo de busca selecionado é executado primeiro e os outros modos (LIKE, Full Text e embeddings) funcionam como alternativas. A pergunta também passa por uma correção aproximada de termos acadêmicos, permitindo reconhecer pequenos erros como `matrcula` antes de procurar os trechos da base. Fontes repetidas entre os modos são reunidas pelo mesmo registro.
+
 ## RF05 — Histórico de conversas
 
 O histórico persistente foi implementado com duas tabelas relacionadas:

@@ -102,6 +102,34 @@ class QuestionRefusalTests(unittest.TestCase):
         self.assertIn("554935512034", answer)
         self.assertEqual(status, "sem_resposta")
 
+    def test_typo_in_institutional_term_is_corrected_before_search(self) -> None:
+        normalized = QuestionService._normalize_institutional_query(
+            "como posso fazer minha matrcula?"
+        )
+        self.assertIn("matricula", normalized.split())
+        self.assertTrue(QuestionService._requires_institutional_context(normalized))
+
+    def test_search_fallback_tries_preferred_mode_then_the_other_modes(self) -> None:
+        repository = KnowledgeRepository(None)  # type: ignore[arg-type]
+        record = SimpleNamespace(id=7)
+
+        def search(_question: str, mode: str, _limit: int):
+            return [(record, 1.0)] if mode == "like" else []
+
+        with patch.object(repository, "search", side_effect=search) as mocked_search, patch(
+            "app.repositories.conhecimento_repository.ConfigurationService.source_limit",
+            return_value=3,
+        ):
+            matches = repository.search_with_fallback(
+                "como posso fazer minha matricula", "embeddings"
+            )
+
+        self.assertEqual(matches, [(record, 1.0)])
+        self.assertEqual(
+            [call.args[1] for call in mocked_search.call_args_list],
+            ["embeddings", "like", "full_text"],
+        )
+
     def test_basic_arithmetic_is_answered_without_documents(self) -> None:
         answer = QuestionService._direct_conversation_response("quanto é 2+2?")
         self.assertEqual(answer, "O resultado de 2+2 é 4.")

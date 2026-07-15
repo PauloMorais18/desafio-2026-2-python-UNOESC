@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 import ast
+import difflib
 import operator
 import re
 import unicodedata
@@ -145,8 +146,13 @@ class QuestionService:
     @classmethod
     def _requires_institutional_context(cls, question: str) -> bool:
         """Identify questions that should be answered from institutional documents."""
-        text = cls._normalize_text(question)
-        institutional_terms = {
+        text = cls._normalize_institutional_query(question)
+        words = set(text.split())
+        return bool(words & cls._institutional_terms())
+
+    @staticmethod
+    def _institutional_terms() -> set[str]:
+        return {
             "academico", "aluno", "aula", "biblioteca", "boleto", "bolsa",
             "calendario", "campus", "certificado", "chamada", "coordenacao",
             "curso", "diploma", "disciplina", "documento", "estagio", "faculdade",
@@ -154,8 +160,20 @@ class QuestionService:
             "matricula", "mensalidade", "nota", "portal", "professor", "prova",
             "rematricula", "secretaria", "trabalho", "universidade", "vestibular",
         }
-        words = set(text.split())
-        return bool(words & institutional_terms)
+
+    @classmethod
+    def _normalize_institutional_query(cls, question: str) -> str:
+        """Normalize accents and correct close misspellings of known academic terms."""
+        words = cls._normalize_text(question).split()
+        institutional_terms = cls._institutional_terms()
+        corrected = []
+        for word in words:
+            if word in institutional_terms or len(word) < 5:
+                corrected.append(word)
+                continue
+            match = difflib.get_close_matches(word, institutional_terms, n=1, cutoff=0.82)
+            corrected.append(match[0] if match else word)
+        return " ".join(corrected)
 
     @classmethod
     def _resolve_answer(
@@ -197,11 +215,12 @@ class QuestionService:
             )
         )
         direct_response = self._direct_conversation_response(question)
-        requires_institutional_context = self._requires_institutional_context(question)
+        normalized_question = self._normalize_institutional_query(question)
+        requires_institutional_context = self._requires_institutional_context(normalized_question)
         matches = (
             []
             if direct_response is not None or not requires_institutional_context
-            else self.knowledge.search(question, search_mode)
+            else self.knowledge.search_with_fallback(normalized_question, search_mode)
         )
         found = bool(matches)
         sources = [

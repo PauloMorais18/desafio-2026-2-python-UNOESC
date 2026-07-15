@@ -122,6 +122,13 @@ transformada em vetor e comparada aos conteúdos usando similaridade de cosseno.
 Isso permite localizar informações relacionadas pelo sentido, mesmo quando a
 pergunta não usa exatamente as mesmas palavras do documento.
 
+O modo escolhido pelo usuário tem prioridade, mas a busca também tenta os
+outros modos (LIKE, Full Text e embeddings) antes de concluir que não existe
+uma fonte. Termos acadêmicos com pequenos erros de digitação, como
+`matrcula`, são aproximados de palavras conhecidas antes dessa busca. Os
+resultados repetidos são unidos e somente as fontes mais relevantes seguem
+para a geração da resposta.
+
 ### Histórico e logs
 
 As mensagens são agrupadas em conversas. Cada conversa pertence ao aluno que a

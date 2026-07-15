@@ -2,12 +2,12 @@
 
 import re
 import unicodedata
-
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.conhecimento import Knowledge
 from app.services.embedding_service import EmbeddingService, cosine_similarity
+from app.services.embedding_service import EmbeddingUnavailableError
 from app.services.configuration_service import ConfigurationService
 
 
@@ -28,6 +28,26 @@ class KnowledgeRepository:
             return self.search_embeddings(question, limit)
         return self._semantic_gate(question, self.search_full_text(question, limit))
 
+    def search_with_fallback(
+        self, question: str, preferred_mode: str, limit: int | None = None
+    ) -> list[tuple[Knowledge, float]]:
+        """Try the selected strategy first and complement it with the other modes."""
+        limit = limit or ConfigurationService(self.session).source_limit()
+        modes = [preferred_mode] + [
+            mode for mode in ("like", "full_text", "embeddings") if mode != preferred_mode
+        ]
+        collected: dict[int, tuple[Knowledge, float]] = {}
+        for mode in modes:
+            try:
+                matches = self.search(question, mode, limit)
+            except EmbeddingUnavailableError:
+                continue
+            for record, score in matches:
+                previous = collected.get(record.id)
+                if previous is None or score > previous[1]:
+                    collected[record.id] = (record, score)
+        return sorted(collected.values(), key=lambda item: item[1], reverse=True)[:limit]
+
     def _semantic_gate(
         self,
         question: str,
@@ -37,16 +57,21 @@ class KnowledgeRepository:
         """Allow textual matches only when their semantic relevance is sufficient."""
         if not matches:
             return []
+        if allow_strong_textual_match:
+            strong_matches = [
+                (record, textual_score)
+                for record, textual_score in matches
+                if textual_score >= 0.8
+            ]
+            if strong_matches:
+                return sorted(strong_matches, key=lambda item: item[1], reverse=True)
         minimum_similarity = ConfigurationService(self.session).minimum_similarity()
         question_vector = EmbeddingService().embed_query(question)
         approved = []
         for record, textual_score in matches:
             semantic_score = cosine_similarity(question_vector, record.embedding or [])
-            strong_textual_match = allow_strong_textual_match and textual_score >= 0.8
-            if semantic_score >= minimum_similarity or (
-                strong_textual_match
-            ):
-                approved.append((record, max(semantic_score, textual_score) if strong_textual_match else semantic_score))
+            if semantic_score >= minimum_similarity:
+                approved.append((record, semantic_score))
         return sorted(
             approved,
             key=lambda item: item[1],
