@@ -56,6 +56,7 @@ function App() {
   const [statistics, setStatistics] = useState(null);
   const [statisticsError, setStatisticsError] = useState("");
   const [statisticsLoading, setStatisticsLoading] = useState(false);
+  const [statisticsPeriod, setStatisticsPeriod] = useState("hoje");
   const [showDocumentation, setShowDocumentation] = useState(false);
   const [apiDocumentation, setApiDocumentation] = useState(null);
   const [documentationLoading, setDocumentationLoading] = useState(false);
@@ -366,7 +367,7 @@ function App() {
     loadDocuments();
   }
 
-  async function openStatistics() {
+  async function openStatistics(period = statisticsPeriod) {
     if (!accessToken) {
       openAuth("login");
       setShowUserMenu(false);
@@ -382,12 +383,13 @@ function App() {
     setStatisticsError("");
     try {
       const headers = { Authorization: `Bearer ${accessToken}` };
+      const periodQuery = `?periodo=${encodeURIComponent(period)}`;
       const responses = await Promise.all([
-        fetch(`${API_URL}/estatisticas`, { headers }),
-        fetch(`${API_URL}/estatisticas/perguntas-do-dia`, { headers }),
-        fetch(`${API_URL}/estatisticas/perguntas-por-aluno`, { headers }),
-        fetch(`${API_URL}/estatisticas/sem-resposta-ou-erro-do-dia`, { headers }),
-        fetch(`${API_URL}/estatisticas/tempo-medio-resposta`, { headers }),
+        fetch(`${API_URL}/estatisticas${periodQuery}`, { headers }),
+        fetch(`${API_URL}/estatisticas/perguntas-do-dia${periodQuery}`, { headers }),
+        fetch(`${API_URL}/estatisticas/perguntas-por-aluno${periodQuery}`, { headers }),
+        fetch(`${API_URL}/estatisticas/sem-resposta-ou-erro-do-dia${periodQuery}`, { headers }),
+        fetch(`${API_URL}/estatisticas/tempo-medio-resposta${periodQuery}`, { headers }),
       ]);
       const bodies = await Promise.all(responses.map((response) => response.json()));
       const failedIndex = responses.findIndex((response) => !response.ok);
@@ -398,6 +400,11 @@ function App() {
     } finally {
       setStatisticsLoading(false);
     }
+  }
+
+  function changeStatisticsPeriod(period) {
+    setStatisticsPeriod(period);
+    openStatistics(period);
   }
 
   async function openDocumentation() {
@@ -536,7 +543,7 @@ function App() {
 
         {showUserMenu && <aside ref={userMenuRef} className="cascade-menu" aria-label="Menu do usuário"><button className="cascade-item mobile-new-chat" type="button" onClick={() => { startNewChat(); setShowUserMenu(false); }}><span>＋</span>Novo chat</button><button className="cascade-item" type="button" onClick={openProfile}><span>◉</span>Perfil</button><button className="cascade-item" type="button" onClick={openHistory}><span>◷</span>Histórico de chats</button><button className="cascade-item" type="button" onClick={openDocuments}><span>⇧</span>Upload contexto</button><button className="cascade-item" type="button" onClick={openSettings}><span>⚙</span>Configurações</button><button className="cascade-item" type="button" onClick={openStatistics}><span>▥</span>Estatísticas</button><button className="cascade-item" type="button" onClick={openDocumentation}><span>▤</span>Documentação</button><button className="cascade-item" type="button" onClick={() => { setShowAbout(true); setShowUserMenu(false); }}><span>ⓘ</span>Sobre o Assistente</button></aside>}
 
-        {showStatistics && <StatisticsDashboard statistics={statistics} loading={statisticsLoading} error={statisticsError} onBack={() => setShowStatistics(false)} onRefresh={openStatistics} />}
+        {showStatistics && <StatisticsDashboard statistics={statistics} loading={statisticsLoading} error={statisticsError} period={statisticsPeriod} onPeriodChange={changeStatisticsPeriod} onBack={() => setShowStatistics(false)} onRefresh={() => openStatistics(statisticsPeriod)} />}
         {showDocumentation && <DocumentationScreen documentation={apiDocumentation} loading={documentationLoading} error={documentationError} onBack={() => setShowDocumentation(false)} onRefresh={openDocumentation} />}
 
         {showProfile && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProfile(false)}><section className="modal-card" role="dialog" aria-modal="true" aria-label="Perfil do usuário" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" type="button" onClick={() => setShowProfile(false)}>×</button><h2>Perfil</h2>{profile ? <dl className="profile-details"><div><dt>Código do aluno</dt><dd>{profile.codigoAluno}</dd></div><div><dt>Nome</dt><dd>{profile.nome}</dd></div><div><dt>E-mail</dt><dd>{profile.email || "Não informado"}</dd></div><div><dt>Status</dt><dd>{profile.ativo ? "Ativo" : "Inativo"}</dd></div><div><dt>Cadastro</dt><dd>{new Date(profile.datahoracad).toLocaleDateString("pt-BR")}</dd></div></dl> : <p>{profileError || "Carregando perfil..."}</p>}</section></div>}

@@ -20,8 +20,14 @@ import { StatisticCard } from "./StatisticCard";
 
 const COLORS = ["#0d55a2", "#32a966"];
 
-export function StatisticsDashboard({ statistics, loading, error, onBack, onRefresh }) {
+export function StatisticsDashboard({ statistics, loading, error, period, onPeriodChange, onBack, onRefresh }) {
   const [activeShortcut, setActiveShortcut] = useState("geral");
+  const periodLabel = {
+    hoje: "hoje",
+    "7dias": "nos últimos 7 dias",
+    "30dias": "nos últimos 30 dias",
+    tudo: "em todo o período",
+  }[period] || "no período";
   const summary = statistics?.summary || {};
   const daily = statistics?.daily || {};
   const unresolved = statistics?.unresolved || {};
@@ -31,7 +37,7 @@ export function StatisticsDashboard({ statistics, loading, error, onBack, onRefr
   const answeredToday = Math.max(0, totalToday - unansweredToday);
   const successRate = totalToday ? Math.round((answeredToday / totalToday) * 100) : 0;
   const responseTime = Math.round(statistics?.average?.tempoMedioRespostaMs ?? 0);
-  const dailySeries = daily.data ? [{ data: daily.data, perguntas: totalToday }] : [];
+  const dailySeries = [{ data: periodLabel, perguntas: totalToday }];
   const successData = [
     { name: "Respondidas", value: answeredToday },
     { name: "Sem resposta/erro", value: unansweredToday },
@@ -44,7 +50,7 @@ export function StatisticsDashboard({ statistics, loading, error, onBack, onRefr
   ];
 
   return <section className="utility-screen dashboard-screen" aria-label="Dashboard de estatísticas">
-    <DashboardHeader onRefresh={onRefresh} onBack={onBack} />
+    <DashboardHeader period={period} onPeriodChange={onPeriodChange} onRefresh={onRefresh} onBack={onBack} />
     <nav className="dashboard-quick-menu" aria-label="Menu rápido do dashboard">
       {shortcuts.map(([id, label]) => <button className={activeShortcut === id ? "active" : ""} key={id} type="button" onClick={() => setActiveShortcut(id)}>{label}</button>)}
     </nav>
@@ -53,21 +59,21 @@ export function StatisticsDashboard({ statistics, loading, error, onBack, onRefr
         <div className="dashboard-metric-grid">
           <StatisticCard icon="◫" title="Total de perguntas" value={summary.total_questions ?? 0} detail="Todos os registros armazenados" tone="blue" />
           <StatisticCard icon="✓" title="Perguntas respondidas" value={summary.answered_questions ?? 0} detail="Respostas registradas no banco" tone="green" />
-          <StatisticCard icon="!" title="Sem resposta ou erro" value={unansweredToday} detail="Ocorrências registradas hoje" tone="orange" />
+          <StatisticCard icon="!" title="Sem resposta ou erro" value={unansweredToday} detail={`Ocorrências ${periodLabel}`} tone="orange" />
           <StatisticCard icon="◷" title="Tempo médio" value={`${responseTime} ms`} detail="Processamento das respostas" tone="teal" />
         </div>
         <div className="dashboard-chart-grid dashboard-chart-grid-two">
-          <ChartCard title="Perguntas realizadas hoje" description="Volume de perguntas recebido no dia atual.">
+          <ChartCard title={`Perguntas realizadas ${periodLabel}`} description="Volume de perguntas no período selecionado.">
             <ResponsiveContainer width="100%" height={240}><LineChart data={dailySeries}><XAxis dataKey="data" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip /><Legend /><Line type="monotone" dataKey="perguntas" name="Perguntas" stroke="#0d55a2" strokeWidth={3} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer>
           </ChartCard>
-          <ChartCard title="Taxa de sucesso hoje" description="Relação entre perguntas respondidas e registros sem resposta ou com erro.">
-            <div className="success-chart"><ResponsiveContainer width="100%" height={200}><PieChart><Pie data={successData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={82} paddingAngle={3}>{successData.map((entry, index) => <Cell key={entry.name} fill={COLORS[index]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer><strong>{successRate}%</strong><span>sucesso hoje</span></div>
+          <ChartCard title={`Taxa de sucesso ${periodLabel}`} description="Relação entre perguntas respondidas e registros sem resposta ou com erro.">
+            <div className="success-chart"><ResponsiveContainer width="100%" height={200}><PieChart><Pie data={successData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={82} paddingAngle={3}>{successData.map((entry, index) => <Cell key={entry.name} fill={COLORS[index]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer><strong>{successRate}%</strong><span>sucesso no período</span></div>
           </ChartCard>
         </div>
       </>}
 
       {activeShortcut === "perguntas" && <>
-        <div className="dashboard-metric-grid dashboard-metric-grid-full"><StatisticCard icon="◫" title="Perguntas hoje" value={totalToday} detail={daily.data || "Data atual"} tone="blue" /></div>
+        <div className="dashboard-metric-grid dashboard-metric-grid-full"><StatisticCard icon="◫" title={`Perguntas ${periodLabel}`} value={totalToday} detail="Período selecionado" tone="blue" /></div>
         <div className="dashboard-chart-grid dashboard-chart-grid-two">
           <ChartCard title="Perguntas por dia" description="Registros do período armazenados no banco."><ResponsiveContainer width="100%" height={270}><LineChart data={dailySeries}><XAxis dataKey="data" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip /><Legend /><Line type="monotone" dataKey="perguntas" name="Perguntas" stroke="#0d55a2" strokeWidth={3} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></ChartCard>
           <ChartCard title="Perguntas por aluno" description="Top 10 alunos por quantidade de perguntas."><ResponsiveContainer width="100%" height={270}><BarChart data={students} layout="vertical" margin={{ left: 8 }}><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="codigoAluno" width={68} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="totalPerguntas" name="Perguntas" fill="#0d55a2" radius={[0, 6, 6, 0]} /></BarChart></ResponsiveContainer></ChartCard>
@@ -75,7 +81,7 @@ export function StatisticsDashboard({ statistics, loading, error, onBack, onRefr
       </>}
 
       {activeShortcut === "qualidade" && <>
-        <div className="dashboard-metric-grid dashboard-metric-grid-compact"><StatisticCard icon="!" title="Sem resposta ou erro hoje" value={unansweredToday} detail="Registros que requerem acompanhamento" tone="orange" /><StatisticCard icon="✓" title="Respondidas hoje" value={answeredToday} detail="Perguntas concluídas no período" tone="green" /></div>
+        <div className="dashboard-metric-grid dashboard-metric-grid-compact"><StatisticCard icon="!" title={`Sem resposta ou erro ${periodLabel}`} value={unansweredToday} detail="Registros que requerem acompanhamento" tone="orange" /><StatisticCard icon="✓" title={`Respondidas ${periodLabel}`} value={answeredToday} detail="Perguntas concluídas no período" tone="green" /></div>
         <div className="dashboard-chart-grid dashboard-chart-grid-single"><ChartCard title="Taxa de sucesso" description="Indicador calculado com as informações do dia atual."><div className="success-chart success-chart-large"><ResponsiveContainer width="100%" height={260}><PieChart><Pie data={successData} dataKey="value" nameKey="name" innerRadius={80} outerRadius={108} paddingAngle={3}>{successData.map((entry, index) => <Cell key={entry.name} fill={COLORS[index]} />)}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer><strong>{successRate}%</strong><span>sucesso hoje</span></div></ChartCard></div>
       </>}
 
