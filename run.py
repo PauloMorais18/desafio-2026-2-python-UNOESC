@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -12,7 +13,29 @@ from collections.abc import Sequence
 
 API_URL = "http://127.0.0.1:8000"
 FRONTEND_URL = "http://127.0.0.1:5173"
-FRONTEND_DIRECTORY = Path(__file__).parent / "frontend"
+PROJECT_DIRECTORY = Path(__file__).resolve().parent
+FRONTEND_DIRECTORY = PROJECT_DIRECTORY / "frontend"
+
+
+def ensure_virtual_environment() -> None:
+    """Restart this script with the project's virtual environment when needed."""
+    virtual_environment_python = (
+        PROJECT_DIRECTORY / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    )
+
+    if not virtual_environment_python.exists():
+        raise SystemExit(
+            "Virtual environment not found. Create it once with: python -m venv .venv"
+        )
+
+    if Path(sys.executable).resolve() == virtual_environment_python.resolve():
+        return
+
+    print(f"Restarting with virtual environment: {virtual_environment_python}")
+    os.execv(
+        virtual_environment_python,
+        [str(virtual_environment_python), str(Path(__file__).resolve()), *sys.argv[1:]],
+    )
 
 
 def start_process(
@@ -47,6 +70,8 @@ def stop_processes(processes: list[subprocess.Popen[bytes]]) -> None:
 
 def main() -> None:
     """Start the complete local application and optionally open the frontend."""
+    ensure_virtual_environment()
+
     parser = argparse.ArgumentParser(description="Start the Academic Assistant locally.")
     parser.add_argument("--no-browser", action="store_true")
     arguments = parser.parse_args()
