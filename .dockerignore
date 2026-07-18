@@ -1,0 +1,16 @@
+.git
+.agents
+.codex
+.venv
+__pycache__
+*.py[cod]
+.env
+.env.*
+!.env.example
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/dev-dist
+logs
+*.log
+.pytest_cache
