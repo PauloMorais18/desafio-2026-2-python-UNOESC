@@ -92,7 +92,13 @@ class KnowledgeRepository:
 
     def search_like(self, question: str, limit: int) -> list[tuple[Knowledge, float]]:
         """Search title and content with case-insensitive LIKE terms."""
-        ignored_terms = {"como", "faco", "faço", "onde", "qual", "quais", "para", "sobre", "uma", "meu", "minha"}
+        ignored_terms = {
+            "como", "faco", "faço", "onde", "qual", "quais", "para", "sobre",
+            "uma", "meu", "minha", "quero", "fazer", "posso", "preciso",
+            "gostaria", "novamente", "detalhe", "detalhes", "detalhado",
+            "detalhada", "detalhar", "melhor", "consegue", "continuar",
+            "continuacao", "aluno",
+        }
         terms = [
             self._remove_accents(term.lower())
             for term in re.findall(r"[A-Za-zÀ-ÿ0-9]+", question)
@@ -114,8 +120,10 @@ class KnowledgeRepository:
         results = []
         for knowledge in self.session.scalars(statement).all():
             searchable = self._remove_accents(f"{knowledge.title} {knowledge.content}".lower())
-            matched_terms = sum(term in searchable for term in terms)
-            results.append((knowledge, matched_terms / max(1, len(terms))))
+            matched_terms = sum(searchable.count(term) for term in terms)
+            textual_score = 1 - (0.2 ** matched_terms) if matched_terms else 0.0
+            results.append((knowledge, textual_score))
+        results.sort(key=lambda item: item[1], reverse=True)
         return results
 
     @staticmethod

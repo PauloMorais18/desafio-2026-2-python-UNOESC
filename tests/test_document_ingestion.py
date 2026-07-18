@@ -37,6 +37,17 @@ class DocumentIngestionTests(unittest.TestCase):
             self.assertEqual(indexed, {"novo.txt": 1})
             service.index.assert_called_once_with(root / "novo.txt")
 
+    def test_pdf_pages_are_separated_and_repeated_boilerplate_is_deduplicated(self) -> None:
+        text = (
+            "Página inicial. Texto repetido.\f"
+            "Segunda seção. Texto repetido. Informação exclusiva."
+        )
+        chunks = split_text(text, chunk_size=1600, overlap=0)
+        self.assertEqual(len(chunks), 2)
+        self.assertTrue(chunks[0].startswith("Página 1"))
+        self.assertTrue(chunks[1].startswith("Página 2"))
+        self.assertEqual(" ".join(chunks).count("Texto repetido."), 1)
+        self.assertIn("Informação exclusiva.", chunks[1])
     def test_cosine_similarity_ranks_related_vectors(self) -> None:
         self.assertAlmostEqual(cosine_similarity([1.0, 0.0], [1.0, 0.0]), 1.0)
         self.assertAlmostEqual(cosine_similarity([1.0, 0.0], [0.0, 1.0]), 0.0)

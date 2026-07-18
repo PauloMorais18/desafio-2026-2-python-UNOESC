@@ -22,20 +22,30 @@ def _response(values: dict[str, str]) -> ConfigurationResponse:
     )
 
 
-@router.get("", response_model=ConfigurationResponse)
+@router.get(
+    "",
+    response_model=ConfigurationResponse,
+    summary="Consultar configurações do assistente",
+)
 def get_configuration(
     _: Annotated[str, Depends(get_current_student)],
     session: Annotated[Session, Depends(get_db_session)],
 ) -> ConfigurationResponse:
+    """Retorna suporte, mensagem de recusa, similaridade e limite de fontes."""
     return _response(ConfigurationService(session).all())
 
 
-@router.put("", response_model=ConfigurationResponse)
+@router.put(
+    "",
+    response_model=ConfigurationResponse,
+    summary="Atualizar configurações do assistente",
+)
 def update_configuration(
     payload: ConfigurationUpdate,
     _: Annotated[str, Depends(get_current_student)],
     session: Annotated[Session, Depends(get_db_session)],
 ) -> ConfigurationResponse:
+    """Valida e salva as configurações gerais utilizadas pelo atendimento."""
     try:
         values = ConfigurationService(session).update({
             "telefone_suporte_whatsapp": payload.support_phone,

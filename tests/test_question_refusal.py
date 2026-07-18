@@ -83,15 +83,15 @@ class QuestionRefusalTests(unittest.TestCase):
         self.assertEqual(status, "respondida")
         generate.assert_not_called()
 
-    def test_general_subject_does_not_send_user_to_support(self) -> None:
+    def test_general_subject_without_source_uses_support(self) -> None:
         answer, error, status = QuestionService._resolve_answer(
             "Qual é a previsão do tempo?", "", False,
             requires_institutional_context=False,
         )
-        self.assertEqual(answer, GENERAL_SCOPE_RESPONSE)
-        self.assertNotIn("WhatsApp", answer)
+        self.assertEqual(answer, OUT_OF_SCOPE_RESPONSE)
+        self.assertIn("WhatsApp", answer)
         self.assertIsNone(error)
-        self.assertEqual(status, "respondida")
+        self.assertEqual(status, "sem_resposta")
 
     def test_institutional_question_without_source_uses_support(self) -> None:
         self.assertTrue(QuestionService._requires_institutional_context("Como faço minha matrícula?"))
@@ -109,6 +109,67 @@ class QuestionRefusalTests(unittest.TestCase):
         self.assertIn("matricula", normalized.split())
         self.assertTrue(QuestionService._requires_institutional_context(normalized))
 
+    def test_matricula_typo_from_chat_is_corrected_before_search(self) -> None:
+        normalized = QuestionService._normalize_institutional_query(
+            "quero fazer minha maticula"
+        )
+        self.assertIn("matricula", normalized.split())
+        self.assertTrue(QuestionService._requires_institutional_context(normalized))
+
+    def test_rematricula_intent_is_mapped_without_exact_keyword(self) -> None:
+        normalized = QuestionService._normalize_institutional_query(
+            "como faco para me inscrever novamente?"
+        )
+        self.assertIn("rematricula", normalized.split())
+        self.assertTrue(QuestionService._requires_institutional_context(normalized))
+    def test_extractive_fallback_distinguishes_matricula_and_rematricula(self) -> None:
+        context = (
+            "A matrícula inicial é realizada online. "
+            "A rematrícula ocorre semestralmente conforme calendário acadêmico. "
+            "O aluno seleciona disciplinas, confirma a grade e finaliza o processo."
+        )
+        initial = QuestionService._extract_grounded_answer(
+            "quero fazer minha maticula", context
+        )
+        renewal = QuestionService._extract_grounded_answer(
+            "como faço para me inscrever novamente?", context
+        )
+        self.assertIn("1. Início online: A matrícula inicial é realizada online.", initial)
+        self.assertIn("A base institucional não identifica o portal", initial)
+        self.assertNotIn("PDF", initial)
+        self.assertNotIn("página", initial.lower())
+        self.assertIn("1. Período da rematrícula", renewal)
+        self.assertIn("2. Seleção das disciplinas", renewal)
+        self.assertIn("Finalize o processo", renewal)
+
+    def test_refazer_matricula_is_understood_as_rematricula(self) -> None:
+        normalized = QuestionService._normalize_institutional_query(
+            "me de o passo a passo para refazer a matricula"
+        )
+        self.assertIn("rematricula", normalized.split())
+        self.assertNotIn("matricula", normalized.split())
+    def test_short_follow_up_uses_latest_user_message_from_same_chat(self) -> None:
+        history = [
+            SimpleNamespace(message_type=1, content="como faço minha matrícula?"),
+            SimpleNamespace(message_type=2, content="A matrícula inicial é online."),
+        ]
+        contextualized = QuestionService._contextualize_question(
+            "consegue ser mais detalhado?", history
+        )
+        self.assertIn("matrícula", contextualized)
+        self.assertIn("mais detalhado", contextualized)
+        self.assertTrue(QuestionService._requires_institutional_context(contextualized))
+
+    def test_unrelated_question_does_not_inherit_previous_subject(self) -> None:
+        history = [SimpleNamespace(message_type=1, content="como faço minha matrícula?")]
+        contextualized = QuestionService._contextualize_question(
+            "qual é a previsão do tempo?", history
+        )
+        self.assertEqual(contextualized, "qual é a previsão do tempo?")
+    def test_grounding_gate_rejects_verbose_hallucination(self) -> None:
+        context = "A matrícula inicial é realizada online."
+        invented = "Para fazer a matrícula, entregue CPF, agende uma reunião e aguarde um e-mail."
+        self.assertFalse(QuestionService._answer_is_grounded(invented, context))
     def test_search_fallback_tries_preferred_mode_then_the_other_modes(self) -> None:
         repository = KnowledgeRepository(None)  # type: ignore[arg-type]
         record = SimpleNamespace(id=7)

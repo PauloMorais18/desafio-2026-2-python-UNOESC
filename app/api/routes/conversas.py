@@ -20,12 +20,14 @@ def list_conversations(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> list[ConversationResponse]:
     """Retorna as conversas salvas do aluno autenticado."""
-    conversations = ConversationRepository(session).list_for_student(current_student)
+    repository = ConversationRepository(session)
+    conversations = repository.list_for_student(current_student)
     return [
         ConversationResponse(
             conversation_key=conversation.key,
             title=conversation.title,
             created_at=conversation.created_at,
+            message_count=repository.message_count_for_student(conversation.key, current_student),
         )
         for conversation in conversations
     ]
@@ -57,3 +59,22 @@ def get_conversation_history(
         )
         for message in repository.messages_for_student(conversation_key, current_student)
     ]
+
+@router.delete(
+    "/conversas/{conversation_key}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir conversa do histórico",
+)
+def delete_conversation(
+    conversation_key: UUID,
+    current_student: Annotated[str, Depends(get_current_student)],
+    session: Annotated[Session, Depends(get_db_session)],
+) -> None:
+    """Oculta a conversa e suas mensagens somente para o aluno proprietário."""
+    if not ConversationRepository(session).deactivate_for_student(
+        conversation_key, current_student
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversa não encontrada.",
+        )

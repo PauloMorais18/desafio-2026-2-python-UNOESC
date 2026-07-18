@@ -14,6 +14,7 @@ class ConversationResponse(BaseModel):
     conversation_key: UUID = Field(serialization_alias="chaveConversa")
     title: str
     created_at: datetime = Field(serialization_alias="datahoracad")
+    message_count: int = Field(default=0, serialization_alias="quantidadeMensagens")
 
 
 class HistoryMessageResponse(BaseModel):

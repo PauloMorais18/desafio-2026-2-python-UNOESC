@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,29 @@ from app.schemas.estatisticas import (
 
 router = APIRouter(tags=["Estatísticas"])
 StatisticsPeriod = Literal["hoje", "7dias", "30dias", "tudo"]
+
+
+def get_statistics_period(periodo: str = Query(default="hoje")) -> StatisticsPeriod:
+    """Normalize the dashboard period while keeping the public API forgiving."""
+    normalized = periodo.strip().lower()
+    aliases = {
+        "hoje": "hoje",
+        "7dias": "7dias",
+        "7 dias": "7dias",
+        "30dias": "30dias",
+        "30 dias": "30dias",
+        "tudo": "tudo",
+        "todos": "tudo",
+    }
+    if normalized not in aliases:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Período inválido. Use hoje, 7dias, 30dias ou tudo.",
+        )
+    return aliases[normalized]  # type: ignore[return-value]
+
+
+StatisticsPeriodDependency = Annotated[StatisticsPeriod, Depends(get_statistics_period)]
 
 
 def _today_filter() -> object:
@@ -46,7 +69,7 @@ def _apply_period(statement: object, period: StatisticsPeriod) -> object:
 @router.get("/estatisticas", response_model=StatisticsResponse, status_code=status.HTTP_200_OK, summary="Consultar resumo das estatísticas")
 def get_statistics(
     session: Annotated[Session, Depends(get_db_session)],
-    periodo: StatisticsPeriod = "hoje",
+    periodo: StatisticsPeriodDependency,
 ) -> StatisticsResponse:
     """Retorna o resumo compacto de estatísticas mantido para compatibilidade."""
     statement = select(
@@ -72,7 +95,7 @@ def get_statistics(
 )
 def get_daily_questions(
     session: Annotated[Session, Depends(get_db_session)],
-    periodo: StatisticsPeriod = "hoje",
+    periodo: StatisticsPeriodDependency,
 ) -> DailyQuestionsResponse:
     """Retorna o total de perguntas recebidas no período selecionado."""
     total = session.scalar(_apply_period(select(func.count(QuestionLog.id)), periodo)) or 0
@@ -87,7 +110,7 @@ def get_daily_questions(
 )
 def get_questions_by_student(
     session: Annotated[Session, Depends(get_db_session)],
-    periodo: StatisticsPeriod = "hoje",
+    periodo: StatisticsPeriodDependency,
 ) -> QuestionsByStudentResponse:
     """Retorna a quantidade de perguntas agrupada por código de aluno."""
     statement = (
@@ -109,7 +132,7 @@ def get_questions_by_student(
 )
 def get_daily_unanswered_or_error(
     session: Annotated[Session, Depends(get_db_session)],
-    periodo: StatisticsPeriod = "hoje",
+    periodo: StatisticsPeriodDependency,
 ) -> DailyUnansweredOrErrorResponse:
     """Retorna registros sem resposta ou com erro no período selecionado."""
     statement = select(func.count(QuestionLog.id)).where(
@@ -127,7 +150,7 @@ def get_daily_unanswered_or_error(
 )
 def get_average_response_time(
     session: Annotated[Session, Depends(get_db_session)],
-    periodo: StatisticsPeriod = "hoje",
+    periodo: StatisticsPeriodDependency,
 ) -> AverageResponseTimeResponse:
     """Retorna o tempo médio de processamento no período selecionado."""
     statement = select(func.coalesce(func.avg(QuestionLog.processing_time_ms), 0)).where(

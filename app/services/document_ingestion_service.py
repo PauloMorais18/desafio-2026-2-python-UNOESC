@@ -28,7 +28,7 @@ def extract_text(path: Path) -> str:
         if suffix in {".txt", ".md"}:
             return path.read_text(encoding="utf-8-sig")
         if suffix == ".pdf":
-            return "\n\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
+            return "\n\n\f\n\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
         if suffix == ".docx":
             document = Document(path)
             paragraphs = [paragraph.text for paragraph in document.paragraphs]
@@ -40,27 +40,48 @@ def extract_text(path: Path) -> str:
 
 
 def split_text(text: str, chunk_size: int = 1600, overlap: int = 250) -> list[str]:
-    """Split normalized text into overlapping, paragraph-aware chunks."""
-    normalized = re.sub(r"[ \t]+", " ", text)
-    normalized = re.sub(r"\n{3,}", "\n\n", normalized).strip()
+    """Split by PDF page, remove repeated boilerplate, then create bounded chunks."""
+    raw_pages = text.split("\f")
+    has_page_markers = len(raw_pages) > 1
+    seen_sentences: set[str] = set()
+    sections: list[str] = []
+
+    for page_number, raw_page in enumerate(raw_pages, start=1):
+        compact_page = re.sub(r"\s+", " ", raw_page).strip()
+        if not compact_page:
+            continue
+        unique_sentences = []
+        for sentence in re.split(r"(?<!\d)(?<=[.!?])\s+", compact_page):
+            sentence = sentence.strip()
+            normalized_sentence = re.sub(r"\s+", " ", sentence).casefold()
+            if not normalized_sentence or normalized_sentence in seen_sentences:
+                continue
+            seen_sentences.add(normalized_sentence)
+            unique_sentences.append(sentence)
+        if unique_sentences:
+            page_text = " ".join(unique_sentences)
+            if has_page_markers:
+                page_text = f"Página {page_number}\n{page_text}"
+            sections.append(page_text)
+
+    normalized = "\n\n".join(sections).strip()
     if not normalized:
         return []
     chunks: list[str] = []
-    start = 0
-    while start < len(normalized):
-        end = min(start + chunk_size, len(normalized))
-        if end < len(normalized):
-            paragraph = normalized.rfind("\n\n", start, end)
-            sentence = normalized.rfind(". ", start, end)
-            boundary = max(paragraph, sentence)
-            if boundary > start + chunk_size // 2:
-                end = boundary + (2 if boundary == sentence else 0)
-        chunk = normalized[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        if end >= len(normalized):
-            break
-        start = max(start + 1, end - overlap)
+    for section in sections:
+        start = 0
+        while start < len(section):
+            end = min(start + chunk_size, len(section))
+            if end < len(section):
+                sentence = section.rfind(". ", start, end)
+                if sentence > start + chunk_size // 2:
+                    end = sentence + 2
+            chunk = section[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
+            if end >= len(section):
+                break
+            start = max(start + 1, end - overlap)
     return chunks
 
 
