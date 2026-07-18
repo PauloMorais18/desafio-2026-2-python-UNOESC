@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080
     ollama_url: str = "http://localhost:11434"
-    model_name: str = "qwen2.5:3b"
+    model_name: str = "qwen2.5:1.5b"
     embedding_model_name: str = "nomic-embed-text"
     embedding_min_similarity: float = 0.65
     app_name: str = "UnoAssist"

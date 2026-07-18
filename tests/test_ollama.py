@@ -6,7 +6,7 @@ from langchain_ollama import ChatOllama
 
 
 OLLAMA_URL = "http://localhost:11434"
-MODEL_NAME = "qwen2.5:3b"
+MODEL_NAME = "qwen2.5:1.5b"
 PROMPT = "Responda apenas 'OK' se estiver funcionando."
 
 

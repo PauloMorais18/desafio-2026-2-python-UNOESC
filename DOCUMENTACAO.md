@@ -83,9 +83,9 @@ O modo de busca selecionado é enviado na requisição de pergunta como `modoBus
 Foi criado um teste isolado em `tests/test_ollama.py`, sem FastAPI, banco de dados ou Chains do LangChain. O teste utiliza `langchain-ollama` e `ChatOllama` para conectar ao Ollama local:
 
 - URL: `http://localhost:11434`
-- Modelo: `qwen2.5:3b`
+- Modelo: `qwen2.5:1.5b`
 
-O projeto utiliza o modelo **Qwen2.5:3B** executado localmente através do Ollama.
+O projeto utiliza o modelo **Qwen2.5:1.5B** executado localmente através do Ollama.
 
 A escolha deste modelo foi motivada pelos seguintes fatores:
 
@@ -108,7 +108,7 @@ Resultado obtido:
 === TESTE OLLAMA ===
 
 Modelo:
-qwen2.5:3b
+qwen2.5:1.5b
 
 Resposta:
 OK
@@ -122,7 +122,7 @@ O modelo e o endereço do Ollama são configuráveis no `.env`:
 
 ```env
 OLLAMA_URL=http://localhost:11434
-MODEL_NAME=qwen2.5:3b
+MODEL_NAME=qwen2.5:1.5b
 ```
 
 Quando não há conteúdo relevante na base, o Ollama não é chamado. O backend retorna uma recusa padronizada e registra a pergunta com status `sem_resposta`. Somente resultados acima do limite configurado em `EMBEDDING_MIN_SIMILARITY` são aceitos como fonte. Essa validação semântica também é aplicada aos candidatos encontrados por LIKE e Full Text, impedindo que coincidências textuais genéricas liberem uma resposta fora do escopo. Assim, a recusa não depende do comportamento do modelo. Se o Ollama estiver indisponível durante uma resposta que possui contexto, a API devolve uma mensagem segura ao aluno e registra o detalhe técnico no log da pergunta.
