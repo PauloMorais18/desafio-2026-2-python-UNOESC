@@ -132,6 +132,20 @@ button:disabled { cursor: default; }
 }
 
 .modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(19, 42, 78, .28); animation: modal-fade .18s ease-out both; }.modal-card { position: relative; width: min(440px, 100%); padding: 29px; color: #17315e; background: #fff; border-radius: 18px; box-shadow: 0 24px 58px rgba(12, 40, 81, .25); animation: modal-enter .22s ease-out both; }.modal-card h2 { margin: 0 0 21px; }.modal-close { position: absolute; top: 14px; right: 16px; padding: 4px 10px; color: #5e7394; background: transparent; border: 0; font-size: 26px; }.profile-details { display: grid; gap: 14px; margin: 0; }.profile-details div { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 11px; border-bottom: 1px solid #edf1f6; }.profile-details dt { color: #7285a3; font-size: 13px; }.profile-details dd { margin: 0; color: #18325d; font-weight: 650; text-align: right; }.setting-option { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 0; border-bottom: 1px solid #edf1f6; }.settings-modal p { color: #7285a3; font-size: 13px; line-height: 1.5; } @keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } } @keyframes modal-enter { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.auth-modal-backdrop { z-index: 40; overflow-y: auto; }
+.auth-modal { width: min(430px, 100%); }
+.auth-modal-copy h2 { margin: 0; padding-right: 38px; }
+.auth-modal-copy p { margin: 8px 0 0; color: #7486a5; font-size: 14px; line-height: 1.5; }
+.auth-modal .auth-switch { margin-top: 12px; padding: 0; color: #0d55a2; background: transparent; border: 0; font-weight: 700; text-align: left; }
+.auth-modal form { display: grid; gap: 11px; margin-top: 22px; }
+.auth-modal input { width: 100%; min-width: 0; padding: 13px 14px; color: #18325e; background: #fff; border: 1px solid #d7e3f1; border-radius: 9px; outline: 0; }
+.auth-modal input:focus { border-color: #0c55a4; box-shadow: 0 0 0 3px rgba(12, 85, 164, .1); }
+.auth-modal .password-field { position: relative; }
+.auth-modal .password-field input { padding-right: 72px; }
+.auth-modal .toggle-password { position: absolute; top: 50%; right: 8px; padding: 7px 8px; color: #0d55a2; background: transparent; border: 0; transform: translateY(-50%); font-weight: 700; }
+.auth-modal .auth-submit { padding: 13px 18px; color: #fff; background: #0c55a4; border: 0; border-radius: 9px; font-weight: 700; }
+.auth-modal .auth-submit:disabled { cursor: wait; opacity: .65; }
+.auth-modal .login-error { margin: 12px 0 0; color: #bd2c2c; font-size: 13px; }
 .search-mode { display: grid; gap: 11px; margin: 18px 0 0; padding: 14px 0; border: 0; border-bottom: 1px solid #edf1f6; }.search-mode legend { padding: 0; color: #17315e; font-weight: 700; }.search-mode label { display: flex; align-items: center; gap: 8px; color: #35557d; font-size: 14px; }.search-mode small { color: #8495ac; font-size: 11px; }
 .history-screen { display: flex; flex: 1; flex-direction: column; min-height: 0; padding-top: 20px; }.history-screen-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }.history-screen-header h2 { margin: 0; color: #17315e; font-size: 24px; }.history-screen-header p { margin: 7px 0 0; color: #7486a5; }.history-screen-header button { padding: 11px 15px; color: #0d55a2; background: #fff; border: 1px solid #cfe0f5; border-radius: 9px; font-weight: 650; }.history-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 25px; overflow-y: auto; padding: 3px 2px 20px; }.history-card { display: flex; min-height: 142px; flex-direction: column; align-items: flex-start; gap: 10px; padding: 19px; color: #17315e; background: #fff; border: 1px solid #e0e9f4; border-radius: 14px; box-shadow: 0 6px 15px rgba(25, 59, 108, .05); text-align: left; }.history-card:hover { border-color: #9bc7ee; transform: translateY(-2px); }.history-card span { color: #24925a; font-size: 12px; font-weight: 700; text-transform: uppercase; }.history-card strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: 16px; line-height: 1.45; }.history-card small { margin-top: auto; color: #7b90af; }.history-card { position: relative; padding: 0; overflow: hidden; }
 .history-card-open { display: flex; flex: 1; width: 100%; min-height: 142px; flex-direction: column; align-items: flex-start; gap: 10px; padding: 19px 58px 19px 19px; color: inherit; background: transparent; border: 0; text-align: left; }
@@ -154,13 +168,17 @@ button:disabled { cursor: default; }
   .mobile-new-chat { display: flex; }
 }
 
+@media (max-width: 720px) {
+  .topbar { align-items: flex-start; flex-wrap: wrap; gap: 14px; padding-bottom: 20px; }
+  .topbar > div:first-child { width: 100%; }
+  .account-actions { width: 100%; justify-content: flex-end; gap: 8px; }
+  .cascade-menu { top: 124px; right: 0; }
+}
+
 @media (max-width: 560px) {
   html, body, #root { max-height: none; min-height: 100%; }
   .application-shell { min-height: 100dvh; }
   .content { width: 100%; padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); }
-  .topbar { align-items: flex-start; flex-wrap: wrap; gap: 14px; padding-bottom: 20px; }
-  .topbar > div:first-child { width: 100%; }
-  .account-actions { width: 100%; justify-content: flex-end; gap: 8px; }
   .hamburger-button { flex: 0 0 40px; }
   .topbar h1 { font-size: 24px; }
   .topbar p { font-size: 14px; }
@@ -173,7 +191,8 @@ button:disabled { cursor: default; }
   .bubble { max-width: calc(100% - 50px); padding: 15px; font-size: 15px; }
   .message-composer { padding-left: 14px; }
   .message-composer button { min-width: auto; padding: 14px; }
-  .login-card { padding: 18px; }.login-card form { grid-template-columns: 1fr; }.login-card .login-error { margin: 0; }
+  .auth-modal-backdrop { align-items: start; padding: max(16px, env(safe-area-inset-top)) 16px 16px; }
+  .auth-modal { margin-top: 3vh; padding: 24px 20px; }
   .account-actions .version { display: none; }.auth-action { padding: 8px 10px; font-size: 12px; }
   .cascade-menu { top: 124px; right: 16px; width: min(250px, calc(100vw - 32px)); max-height: calc(100dvh - 142px); overflow-y: auto; }
   .history-screen-header { align-items: flex-start; flex-direction: column; }.history-cards { grid-template-columns: 1fr; }.modal-card { padding: 24px 20px; }
