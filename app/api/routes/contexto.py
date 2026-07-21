@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,6 @@ router = APIRouter(prefix="/contexto", tags=["Contexto de conhecimento"])
 
 DOCUMENTS_DIRECTORY = Path(__file__).resolve().parents[3] / "contexto" / "documentos"
 ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx"}
-LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}
 
 
 def get_document_path(document_id: str) -> Path:
@@ -24,15 +23,6 @@ def get_document_path(document_id: str) -> Path:
     if candidate.parent != DOCUMENTS_DIRECTORY.resolve() or not candidate.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Documento não encontrado.")
     return candidate
-
-
-def require_localhost(request: Request) -> None:
-    """Reject document deletion when the application is not accessed locally."""
-    if request.url.hostname not in LOCAL_HOSTNAMES:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="A exclusão de documentos só é permitida em localhost.",
-        )
 
 
 @router.get("/documentos", summary="Listar documentos de contexto")
@@ -71,12 +61,10 @@ async def view_document(
 )
 async def delete_document(
     document_id: str,
-    request: Request,
     _: Annotated[str, Depends(get_current_student)],
     session: Annotated[Session, Depends(get_db_session)],
 ) -> None:
     """Delete a file and deactivate all knowledge chunks that came from it."""
-    require_localhost(request)
     path = get_document_path(document_id)
     DocumentIngestionService(session).deactivate(path.name)
     path.unlink()
